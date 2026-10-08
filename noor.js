@@ -439,4 +439,27 @@ ready(function(){
   }
 });
 
+/* 12) Aviso de cookies (una sola vez por navegador) */
+if(location.pathname.indexOf('checkout')<0)ready(function(){
+  var K='noor-cookies-ok';
+  try{if(localStorage.getItem(K))return}catch(e){}
+  var st=document.createElement('style');
+  st.textContent='.noor-cookies{position:fixed;left:12px;right:12px;bottom:12px;z-index:99999;max-width:560px;margin:0 auto;background:#111;color:#fff;border:1px solid #e0990f;border-radius:14px;padding:14px 16px;display:flex;gap:12px;align-items:center;font-size:13px;line-height:1.45;box-shadow:0 8px 30px rgba(0,0,0,.35);transform:translateY(140%);transition:transform .45s ease}'+
+  '.noor-cookies.visible{transform:none}'+
+  '.noor-cookies p{margin:0;flex:1}'+
+  '.noor-cookies a{color:#e0990f;text-decoration:underline}'+
+  '.noor-cookies button{background:#e0990f;color:#111;border:0;border-radius:999px;padding:9px 18px;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap;font-family:inherit}'+
+  'body.noor-cookies-on .noor-toast{display:none!important}';
+  document.head.appendChild(st);
+  var c=document.createElement('div');c.className='noor-cookies';c.setAttribute('role','region');c.setAttribute('aria-label','Aviso de cookies');
+  c.innerHTML='<p>Usamos cookies para que la tienda funcione, medir visitas y mostrarte anuncios. <a href="/politica-de-privacidad/">Ver política de privacidad</a></p><button type="button">Entendido</button>';
+  document.body.appendChild(c);document.body.classList.add('noor-cookies-on');
+  setTimeout(function(){c.classList.add('visible')},1500);
+  c.querySelector('button').onclick=function(){
+    try{localStorage.setItem(K,'1')}catch(e){}
+    c.classList.remove('visible');document.body.classList.remove('noor-cookies-on');
+    setTimeout(function(){c.remove()},500);
+  };
+});
+
 })();
