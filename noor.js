@@ -117,7 +117,7 @@ ready(function(){setTimeout(function(){
   ca.parentNode.insertBefore(b,ca);
   var f=b.querySelectorAll('svg, svg *');
   for(var i=0;i<f.length;i++){var o=f[i].getAttribute('class')==='oro',t=!!f[i].closest('.noor-trust'),s=f[i].style;
-    s.setProperty('fill','none','important');s.setProperty('stroke',t&&!o?'#15151a':'#e0990f','important');
+    s.setProperty('fill','none','important');s.setProperty('stroke',t&&!o?'#f1f1f1':'#e0990f','important');
     s.setProperty('stroke-width','1.8','important');s.setProperty('stroke-linecap','round','important');s.setProperty('stroke-linejoin','round','important')}
 },50)});
 
@@ -473,16 +473,14 @@ ready(function(){
   st.textContent=
     '.noor-progreso{position:fixed;top:0;left:0;right:0;height:3px;z-index:100000;pointer-events:none;padding-top:env(safe-area-inset-top,0px);box-sizing:content-box}'+
     '.noor-progreso i{display:block;height:3px;background:linear-gradient(90deg,#b87a06,'+ORO+',#f3c561);transform-origin:0 50%;transform:scaleX(0);box-shadow:0 0 8px rgba(224,153,15,.55)}'+
-    '.noor-luz-on{isolation:isolate}'+
-    '.noor-luz{position:absolute;inset:0;overflow:hidden;z-index:-1;pointer-events:none;border-radius:inherit}'+
-    '.noor-luz b{position:absolute;inset:0;background:rgba(0,0,0,.38)}'+
-    '.noor-luz i{position:absolute;left:50%;top:50%;width:760px;height:760px;margin:-380px 0 0 -380px;border-radius:50%;background:radial-gradient(circle,rgba(232,163,23,.55) 0%,rgba(224,153,15,.22) 32%,rgba(224,153,15,.06) 55%,rgba(224,153,15,0) 70%);animation:noorRespira 7s ease-in-out infinite}'+
-    '@media (max-width:640px){.noor-luz i{width:520px;height:520px;margin:-260px 0 0 -260px}}'+
-    '@keyframes noorRespira{0%,100%{opacity:.75;scale:1}50%{opacity:1;scale:1.08}}'+
+    '.noor-caja{isolation:isolate}'+
+    '.noor-caja-luz{position:absolute;inset:0;z-index:-1;border-radius:inherit;pointer-events:none;background:radial-gradient(circle at var(--x,22%) var(--y,28%),rgba(236,170,30,.50) 0%,rgba(224,153,15,.16) 34%,rgba(224,153,15,0) 62%),linear-gradient(160deg,#55504a,#3d3a36)}'+
+    '.noor-benef-item.noor-caja strong{color:#fff!important}.noor-benef-item.noor-caja small{color:#ddd8cf!important}'+
+    '.noor-trust.noor-caja .noor-trust-title{color:#fff!important}.noor-trust.noor-caja .noor-trust-title span{color:#f3c561!important}.noor-trust.noor-caja .noor-trust-sub{color:#d6d1c8!important}'+
     '.noor-est{display:inline-block;color:#d9d9d9;transition:color .35s ease,transform .35s cubic-bezier(.3,1.6,.5,1)}'+
     '.noor-est.on{color:'+ORO+';transform:scale(1.18)}.noor-est.on.ok{transform:none}'+
     '.noor-faq-body{overflow:hidden}'+
-    '@media (prefers-reduced-motion:reduce){.noor-luz i{animation:none}.noor-est{transition:none}}';
+    '@media (prefers-reduced-motion:reduce){.noor-est{transition:none}}';
   document.head.appendChild(st);
 
   /* Línea dorada de progreso (no en el checkout) */
@@ -495,25 +493,20 @@ ready(function(){
     window.addEventListener('resize',prog);prog();
   }
 
-  /* Resplandor dorado en "Cuidamos tu visión", que sigue suave al mouse en compu */
+  /* "Cuidamos tu visión": fondo blanco y cajitas grises con luz dorada (en compu la luz sigue al mouse) */
   var mouse=!quieto&&window.matchMedia('(hover: hover) and (pointer: fine)').matches;
-  function seguir(caja,halo){
-    if(!mouse)return;
-    var tx=0,ty=0,x=0,y=0,anim=null;
-    function paso(){x+=(tx-x)*.06;y+=(ty-y)*.06;halo.style.translate=x+'px '+y+'px';
-      anim=(Math.abs(tx-x)>.5||Math.abs(ty-y)>.5)?requestAnimationFrame(paso):null}
-    caja.addEventListener('pointermove',function(e){var r=caja.getBoundingClientRect();
-      tx=(e.clientX-r.left-r.width/2)*.45;ty=(e.clientY-r.top-r.height/2)*.45;if(!anim)anim=requestAnimationFrame(paso)});
-    caja.addEventListener('pointerleave',function(){tx=0;ty=0;if(!anim)anim=requestAnimationFrame(paso)});
-  }
   setTimeout(function(){
-    var s=document.querySelector('.noor-benef');
-    if(!s||s.getAttribute('data-luz'))return;s.setAttribute('data-luz','1');
-    // La línea dorada propia de la sección (.noor-benef-glow) queda quieta, como antes
-    if(getComputedStyle(s).position==='static')s.style.position='relative';
-    s.classList.add('noor-luz-on');
-    var l=document.createElement('div');l.className='noor-luz';l.innerHTML='<b></b><i></i>';
-    s.insertBefore(l,s.firstChild);seguir(s,l.querySelector('i'));
+    var cajas=document.querySelectorAll('.noor-benef-item, .noor-trust');
+    for(var i=0;i<cajas.length;i++)(function(c){
+      if(c.querySelector('.noor-caja-luz'))return;
+      if(getComputedStyle(c).position==='static')c.style.position='relative';
+      c.classList.add('noor-caja');
+      var l=document.createElement('div');l.className='noor-caja-luz';c.insertBefore(l,c.firstChild);
+      if(!mouse)return;
+      c.addEventListener('pointermove',function(e){var r=c.getBoundingClientRect();
+        l.style.setProperty('--x',((e.clientX-r.left)/r.width*100)+'%');l.style.setProperty('--y',((e.clientY-r.top)/r.height*100)+'%')});
+      c.addEventListener('pointerleave',function(){l.style.removeProperty('--x');l.style.removeProperty('--y')});
+    })(cajas[i]);
   },400);
 
   /* Al aparecer en pantalla */
@@ -588,7 +581,7 @@ ready(function(){
   var quieto=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
   var st=document.createElement('style');
   st.textContent=
-    '.noor-trazo{background-image:linear-gradient(90deg,#e0990f,#f3c561);background-repeat:no-repeat;background-position:0 100%;background-size:0% 3px;padding-bottom:6px;-webkit-box-decoration-break:slice;box-decoration-break:slice;transition:background-size 1.1s cubic-bezier(.2,.7,.2,1) .15s}'+
+    '.noor-trazo{display:inline-block;margin-bottom:10px;background-image:linear-gradient(90deg,#e0990f,#f3c561);background-repeat:no-repeat;background-position:0 100%;background-size:0% 3px;padding-bottom:9px;-webkit-box-decoration-break:slice;box-decoration-break:slice;transition:background-size 1.1s cubic-bezier(.2,.7,.2,1) .15s}'+
     '.noor-trazo.on{background-size:100% 3px}'+
     '.noor-fija{position:fixed;left:0;right:0;bottom:0;z-index:99990;background:#fff;border-top:1px solid #ececec;box-shadow:0 -10px 30px rgba(0,0,0,.08);padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px));display:flex;align-items:center;gap:12px;font-family:inherit;transform:translateY(115%);transition:transform .38s cubic-bezier(.2,.8,.2,1)}'+
     '.noor-fija.on{transform:none}'+
