@@ -425,17 +425,19 @@ ready(function(){
   if(full)full.insertBefore(box,full.firstChild);else cfgs[0].parentNode.insertBefore(box,cfgs[0]);
   for(var r=0;r<cfgs.length;r++)if(cfgs[r].parentNode)cfgs[r].parentNode.removeChild(cfgs[r]);
 
-  // Pequeña demostración del movimiento la primera vez que se ve (salvo "reducir movimiento")
+  // La línea avanza sola con el scroll (deja ver el "después" a medida que se baja) hasta que la persona la toca
   var quieto=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if(!quieto&&window.IntersectionObserver){
-    var io=new IntersectionObserver(function(e){
-      if(!e[0].isIntersecting)return;io.disconnect();
-      var pts=[50,22,78,50],t0=null,dur=1800;
-      function paso(t){if(tocado)return;if(!t0)t0=t;var f=Math.min((t-t0)/dur,1),seg=f*3,i=Math.min(Math.floor(seg),2),x=seg-i,ease=x<.5?2*x*x:1-Math.pow(-2*x+2,2)/2;
-        var v=pts[i]+(pts[i+1]-pts[i])*ease;set(v);rng.value=v;if(f<1)requestAnimationFrame(paso)}
-      setTimeout(function(){requestAnimationFrame(paso)},400);
-    },{threshold:.5});
-    io.observe(box);
+  if(!quieto){
+    var vista=q('.noor-ad-view'),pend=false;
+    function seguirScroll(){pend=false;if(tocado)return;
+      var r=vista.getBoundingClientRect(),vh=window.innerHeight;
+      if(r.bottom<0||r.top>vh)return;
+      var c=(r.top+r.height/2)/vh,v=Math.round((Math.max(0,Math.min(1,(c-.15)/.7))*80+10)*10)/10;
+      set(v);rng.value=v}
+    window.addEventListener('scroll',function(){if(!pend){pend=true;requestAnimationFrame(seguirScroll)}},{passive:true});
+    rng.addEventListener('pointerdown',function(){tocado=true});
+    rng.addEventListener('touchstart',function(){tocado=true},{passive:true});
+    seguirScroll();
   }
 });
 
@@ -579,6 +581,99 @@ ready(function(){
       requestAnimationFrame(paso);
     });
   })(cajas[c]);
+});
+
+/* 14) Scroll: banner con profundidad, títulos que se dibujan, botón de compra fijo y avisos de abajo ordenados */
+ready(function(){
+  var quieto=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var st=document.createElement('style');
+  st.textContent=
+    '.noor-trazo{background-image:linear-gradient(90deg,#e0990f,#f3c561);background-repeat:no-repeat;background-position:0 100%;background-size:0% 3px;padding-bottom:6px;-webkit-box-decoration-break:slice;box-decoration-break:slice;transition:background-size 1.1s cubic-bezier(.2,.7,.2,1) .15s}'+
+    '.noor-trazo.on{background-size:100% 3px}'+
+    '.noor-fija{position:fixed;left:0;right:0;bottom:0;z-index:99990;background:#fff;border-top:1px solid #ececec;box-shadow:0 -10px 30px rgba(0,0,0,.08);padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px));display:flex;align-items:center;gap:12px;font-family:inherit;transform:translateY(115%);transition:transform .38s cubic-bezier(.2,.8,.2,1)}'+
+    '.noor-fija.on{transform:none}'+
+    '.noor-fija img{width:46px;height:46px;border-radius:10px;object-fit:cover;background:#f3f3f1;flex:0 0 46px}'+
+    '.noor-fija-info{flex:1;min-width:0;line-height:1.25}'+
+    '.noor-fija-info strong{display:block;font-size:13px;color:#15151a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}'+
+    '.noor-fija-info span{font-size:16px;font-weight:800;color:#15151a}'+
+    '.noor-fija button{font:inherit;font-weight:800;font-size:15px;background:#e0990f;color:#111;border:0;border-radius:999px;padding:12px 22px;cursor:pointer;white-space:nowrap}'+
+    '.noor-fija button:focus-visible{outline:3px solid #111;outline-offset:2px}'+
+    '@media (min-width:900px){.noor-fija{left:50%;right:auto;bottom:16px;width:560px;margin-left:-280px;border:1px solid #ececec;border-radius:16px;transform:translateY(170%)}.noor-fija.on{transform:none}}'+
+    '.noor-sube{transition:translate .38s cubic-bezier(.2,.8,.2,1)}'+
+    '@media (prefers-reduced-motion:reduce){.noor-trazo{transition:none;background-size:100% 3px}.noor-fija,.noor-sube{transition:none}}';
+  document.head.appendChild(st);
+
+  /* Títulos que se dibujan: "Cuidamos tu visión", "Reseñas de clientes verificados" y "Preguntas frecuentes" */
+  setTimeout(function(){
+    var objetivos=[].slice.call(document.querySelectorAll('.noor-benef-title'));
+    var zonas=document.querySelectorAll('.noor-reviews, .noor-faq');
+    for(var z=0;z<zonas.length;z++){
+      var els=zonas[z].querySelectorAll('*');
+      for(var i=0;i<els.length;i++){var t=(els[i].textContent||'').trim();
+        if(!els[i].children.length&&/^(reseñas de clientes verificados|preguntas frecuentes)$/i.test(t))objetivos.push(els[i])}
+    }
+    objetivos.forEach(function(el){
+      if(el.querySelector('.noor-trazo'))return;
+      var sp=document.createElement('span');sp.className='noor-trazo';
+      while(el.firstChild)sp.appendChild(el.firstChild);el.appendChild(sp);
+      if(quieto||!window.IntersectionObserver){sp.classList.add('on');return}
+      var io=new IntersectionObserver(function(e){if(e[0].isIntersecting){sp.classList.add('on');io.disconnect()}},{threshold:.8});
+      io.observe(sp);
+    });
+  },500);
+
+  /* Banner con profundidad: la foto baja más lento y el texto se desvanece */
+  var hero=document.querySelector('.noor-hero'),hbg=hero&&hero.querySelector('.noor-hero-bg'),htx=hero&&hero.querySelector('.noor-hero-txt');
+  if(hero&&hbg&&htx&&!quieto){
+    hero.style.setProperty('overflow','hidden','important');
+    if(getComputedStyle(hbg).position==='absolute'){hbg.style.setProperty('top','-12%','important');hbg.style.setProperty('bottom','-12%','important');hbg.style.setProperty('height','auto','important')}
+  }
+
+  /* Botón de compra fijo (solo en productos) */
+  var btn=document.querySelector('.js-addtocart:not(.js-addtocart-placeholder)')||document.querySelector('#product_form [type="submit"]');
+  var fija=null,pe=document.querySelector('#price_display, .js-price-display');
+  if(btn&&location.pathname.indexOf('checkout')<0){
+    fija=document.createElement('div');fija.className='noor-fija';fija.setAttribute('aria-hidden','true');
+    var img=document.querySelector('meta[property="og:image"]'),h1=document.querySelector('h1');
+    fija.innerHTML=(img?'<img alt="" src="'+img.content.replace(/"/g,'')+'">':'')+
+      '<div class="noor-fija-info"><strong></strong><span></span></div><button type="button" tabindex="-1">Comprar</button>';
+    fija.querySelector('strong').textContent=h1?h1.textContent.trim():'';
+    function precio(){fija.querySelector('.noor-fija-info span').textContent=pe?pe.textContent.trim():''}
+    precio();if(pe&&window.MutationObserver)new MutationObserver(precio).observe(pe,{childList:true,subtree:true,characterData:true});
+    fija.querySelector('button').onclick=function(){btn.click()};
+    document.body.appendChild(fija);
+  }
+
+  /* Avisos de abajo (ventas, cookies, WhatsApp) suben cuando aparece la barra */
+  function deAbajo(){
+    var lista=[].slice.call(document.querySelectorAll('.noor-toast, .noor-cookies'));
+    var ws=document.querySelectorAll('a[href*="wa.me"], a[href*="whatsapp"], [class*="whatsapp"], [id*="whatsapp"]');
+    for(var i=0;i<ws.length;i++){var e=ws[i];
+      while(e&&e!==document.body){if(getComputedStyle(e).position==='fixed'){if(lista.indexOf(e)<0)lista.push(e);break}e=e.parentElement}}
+    return lista;
+  }
+  var visible=false;
+  function barra(on){
+    if(on===visible)return;visible=on;
+    fija.classList.toggle('on',on);
+    var alto=on?fija.offsetHeight+(innerWidth>=900?16:0):0;
+    deAbajo().forEach(function(e){e.classList.add('noor-sube');e.style.translate=alto?'0 -'+alto+'px':''});
+  }
+
+  /* Un solo cálculo por cuadro de scroll */
+  var pend=false;
+  function cuadro(){pend=false;
+    if(hero&&hbg&&htx&&!quieto){
+      var r=hero.getBoundingClientRect(),y=Math.max(0,Math.min(-r.top,r.height));
+      hbg.style.translate='0 '+(y*.35)+'px';
+      htx.style.translate='0 '+(y*.15)+'px';
+      htx.style.opacity=Math.max(0,1-y/(r.height*.7));
+    }
+    if(fija){var b=btn.getBoundingClientRect();barra(b.bottom<0&&!btn.disabled&&btn.offsetParent!==null)}
+  }
+  window.addEventListener('scroll',function(){if(!pend){pend=true;requestAnimationFrame(cuadro)}},{passive:true});
+  window.addEventListener('resize',function(){if(!pend){pend=true;requestAnimationFrame(cuadro)}});
+  cuadro();
 });
 
 })();
