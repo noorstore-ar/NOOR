@@ -1,8 +1,95 @@
-(function(){
-function ready(f){if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',f)}else{f()}}
+/* =====================================================================
+   NOOR STORE · noor.js
+   Se carga desde el pie de Tiendanube:
+   <script src="https://cdn.jsdelivr.net/gh/noorstore-ar/NOOR@vXX/noor.js"></script>
 
-/* 1) Reseñas y FAQ a lo ancho */
-ready(function(){
+   CÓMO EDITAR
+   - Textos, fotos, ventas, avisos y números de la tienda: solo en CONFIG (abajo).
+   - Imágenes nuevas: subirlas a la raíz del repo (rama main) y poner el nombre en CONFIG.
+   - Cada sección es independiente: si una falla, las demás siguen funcionando.
+   - Toda sección nueva va al final, antes de la última línea "})();".
+   - Cada cambio de este archivo = commit + release nuevo (v23, v24…) + cambiar el número en el pie.
+
+   SECCIONES
+    1  Reseñas y preguntas a lo ancho          8b Tarjeta de oferta (productos)
+    2  Avisos de ventas (solo productos)       9  Antes y después deslizable
+    3  Barra de anuncios                      10  Aviso de cookies
+    4  Carrusel "Así se usa el Clip 5 en 1"   11  Detalles animados (progreso, cajitas, estrellas, preguntas, medidas)
+    5  "Cuidamos tu visión"                   12  Scroll (banner, títulos, compra fija, avisos de abajo)
+    6  Inicio: máximo de productos            13  "Cambiá de clip en un segundo"
+    7  Cuadro de medidas                      14  Prolijidad (Leer más, 0% OFF, cookies del tema)
+    8a Banner principal
+
+   ETIQUETAS EN LAS DESCRIPCIONES DE PRODUCTO (ocultas con style="display:none")
+   - Tarjeta de oferta:  <div class="noor-oferta">Título|Subtítulo|Regalo|sin transferencia</div>
+   - Antes y después:    <div class="noor-ad">antes.jpg|despues.jpg|Etiqueta antes|Etiqueta después|Título|Pestaña</div>
+   - Medidas:            <div class="noor-medidas">frente|calibre|puente|patilla</div>
+                         (varios armazones: frente|calibre|puente|patilla|Nombre;frente|calibre|puente|patilla|Nombre)
+   - Reseñas y preguntas: bloques con clase noor-reviews y noor-faq
+   ===================================================================== */
+(function(){
+
+/* ---------- CONFIG: todo lo editable de la tienda ---------- */
+var CONFIG={
+  // Avisos de "X compró…" (solo ventas reales). Fecha AAAA-MM-DD: "Hoy/Ayer/Hace N días" solo si es de los últimos 3 días
+  ventas:[
+    ['Agustina N.','CABA','Clip 5 en 1','2026-09-25'],
+    ['BRUNO R.','SALTA','Clip 5 en 1','2026-09-23'],
+    ['RAMIRO D.','MISIONES','Clip 2 en 1 - Acetato','2026-09-22'],
+    ['NICOLAS A.','LA PLATA','Spray Limpia Cristales','2026-09-21'],
+    ['JERO F.','FORMOSA','Clip 5 en 1','2026-09-25']
+  ],
+  // Barra negra de arriba
+  anuncios:['🚚 ENVÍO GRATIS A TODO EL PAÍS','💳 3 CUOTAS SIN INTERÉS','💸 10% OFF EXTRA CON TRANSFERENCIA'],
+  // Banner principal (imagen del repo o URL completa)
+  banner:{
+    imagen:'banner-gamer.webp',
+    encuadre:'60% 30%',          // parte de la foto que se prioriza al recortar (horizontal vertical)
+    frases:['el home office.','tus horas de estudio.','la ruta.','tus días de sol.','la pantalla y el sol.','cada momento del día.'],
+    promo:'HASTA <b>50%</b> OFF',
+    boton:'Ver clipones →',
+    link:'/lentes-clip-on/'
+  },
+  // Carrusel "Así se usa el Clip 5 en 1": [foto, título, clip]. Foto = archivo del repo o URL completa
+  carrusel:[
+    ['https://d1a9qnv764bsoo.cloudfront.net/stores/007/899/679/rte/hf_20260925_170420_02e40c43-ef30-4fed-b7ed-ba38790f422e.png','Al volante de noche','CLIP AMARILLO'],
+    ['https://d1a9qnv764bsoo.cloudfront.net/stores/007/899/679/rte/ChatGPT Image 25 sept 2026, 04_15_00 p.m..png','Con el sol fuerte','CLIP AZUL ESPEJADO'],
+    ['https://d1a9qnv764bsoo.cloudfront.net/stores/007/899/679/rte/hf_20260925_190928_46c4e36e-7057-4db0-a07f-700d1a313e06.png','Home office','CONTROL BLUE'],
+    ['carrusel-ciudad.webp','En la ciudad','CLIP NEGRO DEGRADÉ'],
+    ['carrusel-paseo.webp','De paseo','CLIP MARRÓN'],
+    ['carrusel-sol-intenso.webp','Sol intenso','CLIP NEGRO']
+  ],
+  carruselSegundos:6,
+  productosInicio:9,              // máximo de productos con stock en el inicio
+  envioDias:[4,7],                // días hábiles de entrega (desde, hasta)
+  cuotas:3,
+  descuentoTransferencia:0.10,
+  paginaPrivacidad:'/politica-de-privacidad/',
+  iman:{                          // sección "Cambiá de clip en un segundo"
+    armazon:'iman-armazon.webp', clip:'iman-clip.webp',
+    tag:'SISTEMA MAGNÉTICO', titulo:'Cambiá de clip en un segundo',
+    pasos:['Bajá para colocar el clip','Los imanes lo atraen solos…','Listo: más contraste para manejar de noche'],
+    quieto:'Los imanes lo encastran solos, sin tornillos'
+  }
+};
+
+/* ---------- Utilidades comunes ---------- */
+// Corre cada sección cuando la página está lista; si una falla, avisa en la consola y las demás siguen
+function ready(nombre,f){
+  if(typeof nombre==='function'){f=nombre;nombre='sección'}
+  function correr(){try{f()}catch(e){if(window.console)console.warn('[Noor] Falló "'+nombre+'":',e)}}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',correr);else correr();
+}
+// Carpeta de imágenes del repo (rama main), calculada desde el src de este mismo script
+var BASE=(function(){var sc=document.currentScript||document.querySelector('script[src*="/NOOR@"]');
+  return sc&&sc.src?sc.src.replace(/NOOR@[^\/]+\/.*$/,'NOOR@main/'):''})();
+function img(f){f=(f||'').trim();return /^https?:/i.test(f)?(/%[0-9a-f]{2}/i.test(f)?f:encodeURI(f)):BASE+f}
+var QUIETO=!!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches);  // celular con "reducir movimiento"
+var CHECKOUT=location.pathname.indexOf('checkout')>-1;
+
+
+/* 1) Reseñas y preguntas frecuentes a lo ancho */
+ready('reseñas a lo ancho',function(){
   var destino=document.querySelector('#related-products');
   var producto=document.querySelector('.producto.m-section-half');
   var tipos=['.noor-reviews','.noor-faq'];
@@ -23,14 +110,8 @@ ready(function(){
 });
 
 /* 2) Avisos de ventas reales (la fecha se muestra solo si la venta es de los últimos 3 días) */
-var ventas=[
-  ['Agustina N.','CABA','Clip 5 en 1','2026-09-25'],
-  ['BRUNO R.','SALTA','Clip 5 en 1','2026-09-23'],
-  ['RAMIRO D.','MISIONES','Clip 2 en 1 - Acetato','2026-09-22'],
-  ['NICOLAS A.','LA PLATA','Spray Limpia Cristales','2026-09-21'],
-  ['JERO F.','FORMOSA','Clip 5 en 1','2026-09-25']
-];
-if(location.pathname.indexOf('checkout')<0)ready(function(){
+var ventas=CONFIG.ventas;
+if(!CHECKOUT)ready('avisos de ventas',function(){
   if(document.body.classList.contains('template-home'))return; // en el inicio no, para que se vea más tranquilo
   var b=document.createElement('div');b.className='noor-toast';
   b.innerHTML='<div class="noor-toast-icon"></div><div><p class="noor-toast-title"></p><p class="noor-toast-text"></p><p class="noor-toast-tag"></p></div><button class="noor-toast-close">×</button>';
@@ -50,9 +131,9 @@ if(location.pathname.indexOf('checkout')<0)ready(function(){
 });
 
 /* 3) Barra de anuncios */
-ready(function(){
+ready('barra de anuncios',function(){
   if(document.querySelector('.noor-topbar'))return;
-  var m=['🚚 ENVÍO GRATIS A TODO EL PAÍS','💳 3 CUOTAS SIN INTERÉS','💸 10% OFF EXTRA CON TRANSFERENCIA'];
+  var m=CONFIG.anuncios;
   var h='<span>'+m.join('</span><span>')+'</span>';h=h+h+h;
   var b=document.createElement('div');b.className='noor-topbar';
   b.innerHTML='<div class="noor-topbar-track">'+h+h+'</div>';
@@ -61,23 +142,15 @@ ready(function(){
   setTimeout(function(){window.dispatchEvent(new Event('resize'))},300);
 });
 
-/* 4) Carrusel 3D */
-var R='https://d1a9qnv764bsoo.cloudfront.net/stores/007/899/679/rte/';
-var fotos=[
-  ['hf_20260925_170420_02e40c43-ef30-4fed-b7ed-ba38790f422e.png','Al volante de noche','CLIP AMARILLO'],
-  ['ChatGPT Image 25 sept 2026, 04_15_00 p.m..png','Con el sol fuerte','CLIP AZUL ESPEJADO'],
-  ['hf_20260925_190928_46c4e36e-7057-4db0-a07f-700d1a313e06.png','Home office','CONTROL BLUE'],
-  ['ChatGPT Image 25 sept 2026, 04_19_50 p.m..png','En la ciudad','CLIP NEGRO DEGRADÉ'],
-  ['ChatGPT Image 25 sept 2026, 04_21_21 p.m..png','De paseo','CLIP MARRÓN'],
-  ['ChatGPT Image 25 sept 2026, 04_23_45 p.m..png','Sol intenso','CLIP NEGRO']
-];
-ready(function(){
+/* 4) Carrusel "Así se usa el Clip 5 en 1" */
+var fotos=CONFIG.carrusel;
+ready('carrusel',function(){
   var dest=document.querySelector('[data-store="home-products-featured"]');
   if(!dest||document.querySelector('.noor-cf-wrap'))return;
   var w=document.createElement('div');w.className='noor-cf-wrap';
   var c='',d='';
   for(var i=0;i<fotos.length;i++){
-    c+='<div class="noor-cf-card" data-i="'+i+'" style="background-image:url(\''+encodeURI(R+fotos[i][0])+'\')"><div class="noor-cf-caption">'+fotos[i][1]+'<span>'+fotos[i][2]+'</span></div></div>';
+    c+='<div class="noor-cf-card" data-i="'+i+'" style="background-image:url(\''+img(fotos[i][0])+'\')"><div class="noor-cf-caption">'+fotos[i][1]+'<span>'+fotos[i][2]+'</span></div></div>';
     d+='<button data-i="'+i+'"></button>';
   }
   w.innerHTML='<p class="noor-cf-tag">UN LOOK PARA CADA MOMENTO</p><p class="noor-cf-title">Así se usa el Clip 5 en 1</p><p class="noor-cf-sub">Un armazón, cinco clips y la pantalla cubierta.</p><div class="noor-cf">'+c+'</div><div class="noor-cf-dots">'+d+'</div>';
@@ -89,7 +162,7 @@ ready(function(){
       it[i].style.zIndex=10-s;it[i].style.opacity=s>2?0:1;it[i].style.filter=k?'brightness(.75)':'none';
       pt[i].className=i===a?'activo':''}}
   function ir(i){a=(i+n)%n;pin();re()}
-  function re(){clearInterval(tm);tm=setInterval(function(){ir(a+1)},6000)}
+  function re(){clearInterval(tm);tm=setInterval(function(){ir(a+1)},CONFIG.carruselSegundos*1000)}
   for(var j=0;j<n;j++){it[j].onclick=pt[j].onclick=function(){ir(+this.getAttribute('data-i'))}}
   var z=w.querySelector('.noor-cf'),x=null;
   z.addEventListener('touchstart',function(e){x=e.touches[0].clientX},{passive:true});
@@ -98,8 +171,8 @@ ready(function(){
   addEventListener('resize',pin);pin();re();
 });
 
-/* 5) Cuidamos tu visión */
-ready(function(){setTimeout(function(){
+/* 5) "Cuidamos tu visión" */
+ready('cuidamos tu visión',function(){setTimeout(function(){
   var pr=document.querySelector('[data-store="home-products-featured"]');
   if(!pr||document.querySelector('.noor-benef'))return;
   function ic(p){return '<svg viewBox="0 0 24 24">'+p+'</svg>'}
@@ -114,7 +187,7 @@ ready(function(){setTimeout(function(){
     tr('<path class="oro" d="M1 8h4M1.5 11h3.5M2.5 14h2.5"/><path d="M7 6h9v10H7zM16 9h3l3 3v4h-6"/><circle cx="10" cy="17" r="2"/><circle cx="19" cy="17" r="2"/>','ENVÍO <span>GRATIS</span>','A TODO EL PAÍS')+
     tr('<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/><path class="oro" d="M6 15h2M10 15h2"/>','<span>3</span> CUOTAS','SIN INTERÉS')+
     tr('<path d="M12 2l8 3v6c0 5-3.5 9-8 11-4.5-2-8-6-8-11V5z"/><path class="oro" d="M8.5 12l2.5 2.5 4.5-5"/>','COMPRA <span>SEGURA</span>','PAGO PROTEGIDO')+'</div>';
-  var ca=document.querySelector('.noor-cf-wrap, .noor-acc-wrap, .noor-ugc')||pr;
+  var ca=document.querySelector('.noor-cf-wrap')||pr;
   ca.parentNode.insertBefore(b,ca);
   var f=b.querySelectorAll('svg, svg *');
   for(var i=0;i<f.length;i++){var o=f[i].getAttribute('class')==='oro',t=!!f[i].closest('.noor-trust'),s=f[i].style;
@@ -123,10 +196,10 @@ ready(function(){setTimeout(function(){
 },50)});
 
 /* 6) Inicio: ocultar sin stock y mostrar máximo 9 productos */
-ready(function(){
+ready('inicio máx productos',function(){
   var h=document.querySelector('[data-store="home-products-featured"]');
   if(!h)return;
-  var MAX=9;
+  var MAX=CONFIG.productosInicio;
   var it=h.querySelectorAll('.js-item-product'),n=0;
   for(var i=0;i<it.length;i++){
     var s=it[i].querySelector('[data-store^="stock-product-"]');
@@ -135,8 +208,8 @@ ready(function(){
   }
 });
 
-/* 8) Cuadro de medidas del armazón */
-ready(function(){
+/* 7) Cuadro de medidas del armazón */
+ready('medidas',function(){
   var cajas=document.querySelectorAll('.noor-medidas');
   for(var k=0;k<cajas.length;k++){
     var c=cajas[k];
@@ -208,12 +281,10 @@ ready(function(){
   }
 });
 
-/* 9) Banner principal con frase animada (v3) */
-ready(function(){
+/* 8a) Banner principal con frase animada */
+ready('banner',function(){
   if(document.querySelector('.noor-hero'))return;
-  var IMG=encodeURI('https://d1a9qnv764bsoo.cloudfront.net/stores/007/899/679/rte/ChatGPT Image 25 sept 2026, 07_41_50 p.m..png');
-  var FRASES=['el home office.','tus horas de estudio.','la ruta.','tus días de sol.','la pantalla y el sol.','cada momento del día.'];
-  var LINK='/lentes-clip-on/';
+  var B=CONFIG.banner,IMG=img(B.imagen),FRASES=B.frases,LINK=B.link;
   if(!document.body.classList.contains('template-home'))return;
   function subir(x){var el=x,top=null;
     while(el&&el!==document.body){
@@ -231,13 +302,13 @@ ready(function(){
   if(!sl){var sw=document.querySelector('.swiper-container,.swiper');if(sw)sl=subir(sw)||sw.closest('section')||sw;}
   if(!sl)return;
   var h=document.createElement('div');h.className='noor-hero';
-  h.innerHTML='<div class="noor-hero-bg" style="background-image:url(\''+IMG+'\')"></div><div class="noor-hero-shade"></div>'+
+  h.innerHTML='<div class="noor-hero-bg" style="background-image:url(\''+IMG+'\');background-position:'+B.encuadre+'"></div><div class="noor-hero-shade"></div>'+
     '<div class="noor-hero-txt">'+
       '<p class="noor-hero-t1">ENFOCATE</p>'+
       '<p class="noor-hero-t2">EN LO IMPORTANTE.</p>'+
       '<p class="noor-hero-t3">Nosotros cuidamos <span>tu visión.</span></p>'+
       '<p class="noor-hero-t4">Anteojos diseñados para <span class="noor-hero-w">'+FRASES[0]+'</span></p>'+
-      '<div class="noor-hero-cta"><span class="noor-hero-promo">HASTA <b>50%</b> OFF</span><a class="noor-hero-btn" href="'+LINK+'">Ver clipones →</a></div>'+
+      '<div class="noor-hero-cta"><span class="noor-hero-promo">'+B.promo+'</span><a class="noor-hero-btn" href="'+LINK+'">'+B.boton+'</a></div>'+
     '</div>';
   sl.parentNode.insertBefore(h,sl);
   sl.style.setProperty('display','none','important');
@@ -254,9 +325,10 @@ ready(function(){
     },350);
   },2600);
 });
-/* 10) Tarjeta de oferta animada sobre el botón de compra
+
+/* 8b) Tarjeta de oferta animada sobre el botón de compra
    Se activa con <div class="noor-oferta" style="display:none">Título|Subtítulo|Regalo</div> en la descripción */
-ready(function(){
+ready('tarjeta de oferta',function(){
   var cfg=document.querySelector('.noor-oferta');
   if(!cfg||document.querySelector('.noor-deal'))return;
   var btn=document.querySelector('.js-addtocart:not(.js-addtocart-placeholder)')||document.querySelector('#product_form [type="submit"]');
@@ -284,7 +356,7 @@ ready(function(){
   '.noor-deal{position:relative;margin:0 0 14px;border:2px solid transparent;border-radius:14px;background:linear-gradient(#fffaf0,#fffaf0) padding-box,conic-gradient(from var(--noor-giro),#e0990f 0deg,#e0990f 260deg,#f3c561 300deg,#fff6dc 320deg,#f3c561 340deg,#e0990f 360deg) border-box;overflow:hidden;opacity:0;font-family:inherit;animation:noorGiro 6s linear infinite}'+
   '@keyframes noorGiro{to{--noor-giro:360deg}}'+
   '.noor-deal.noor-in{animation:noorDealIn .7s cubic-bezier(.2,.9,.3,1.2) forwards,noorGiro 6s linear infinite}'+
-      '.noor-deal-main{display:flex;align-items:center;gap:12px;padding:16px}'+
+  '.noor-deal-main{display:flex;align-items:center;gap:12px;padding:16px}'+
   '.noor-deal-dot{flex:0 0 22px;height:22px;border-radius:50%;border:2px solid #e0990f;display:flex;align-items:center;justify-content:center;animation:noorDot 2.4s 1.5s infinite}'+
   '.noor-deal-dot:before{content:"";width:12px;height:12px;border-radius:50%;background:#e0990f}'+
   '.noor-deal-info{flex:1;min-width:0}'+
@@ -301,7 +373,6 @@ ready(function(){
   '.noor-deal-free{margin-left:auto;background:#e0990f;color:#fff;font-size:10px;font-weight:800;padding:3px 9px;border-radius:20px}'+
   '.noor-nudge{animation:noorNudge .9s ease}'+
   '@keyframes noorDealIn{0%{opacity:0;transform:translateY(18px) scale(.97)}60%{opacity:1;transform:translateY(-4px) scale(1.01)}100%{opacity:1;transform:none}}'+
-  '@keyframes noorSheen{to{left:130%}}'+
   '@keyframes noorDot{0%,100%{box-shadow:0 0 0 0 rgba(224,153,15,.45)}50%{box-shadow:0 0 0 7px rgba(224,153,15,0)}}'+
   '@keyframes noorNudge{0%,100%{transform:none}20%{transform:translateY(-3px) scale(1.02)}40%{transform:none}60%{transform:translateY(-2px)}}'+
   '@media (max-width:480px){.noor-deal-tit{font-size:15px}.noor-deal-price{font-size:19px}}'+
@@ -333,11 +404,11 @@ ready(function(){
     q('.noor-deal-price').textContent=fmt(pr);
     if(old>pr){q('.noor-deal-old').textContent=fmt(old);q('.noor-deal-off').textContent=Math.round((1-pr/old)*100)+'% OFF';q('.noor-deal-old').style.display='';q('.noor-deal-off').style.display=''}
     else{q('.noor-deal-old').style.display='none';q('.noor-deal-off').style.display='none'}
-    q('.noor-deal-paytx').innerHTML='3 cuotas sin interés de <b>'+fmt(pr/3)+'</b>'+(sinTransf?'':' · <b>'+fmt(pr*0.9)+'</b> por transferencia');
+    q('.noor-deal-paytx').innerHTML=CONFIG.cuotas+' cuotas sin interés de <b>'+fmt(pr/CONFIG.cuotas)+'</b>'+(sinTransf?'':' · <b>'+fmt(pr*(1-CONFIG.descuentoTransferencia))+'</b> por transferencia');
   }
   function habil(n){var x=new Date(),c=0;while(c<n){x.setDate(x.getDate()+1);var w=x.getDay();if(w>0&&w<6)c++}return x}
   var o={weekday:'short',day:'numeric',month:'short'};
-  q('.noor-deal-ship').innerHTML='Envío gratis · llega aprox. entre el <b>'+habil(4).toLocaleDateString('es-AR',o)+'</b> y el <b>'+habil(7).toLocaleDateString('es-AR',o)+'</b>';
+  q('.noor-deal-ship').innerHTML='Envío gratis · llega aprox. entre el <b>'+habil(CONFIG.envioDias[0]).toLocaleDateString('es-AR',o)+'</b> y el <b>'+habil(CONFIG.envioDias[1]).toLocaleDateString('es-AR',o)+'</b>';
   upd();
   if(pe&&window.MutationObserver)new MutationObserver(upd).observe(pe,{childList:true,subtree:true,characterData:true});
 
@@ -354,16 +425,15 @@ ready(function(){
   var usado=false;btn.addEventListener('click',function(){usado=true});
   setInterval(function(){if(usado||document.hidden)return;btn.classList.add('noor-nudge');setTimeout(function(){btn.classList.remove('noor-nudge')},900)},7000);
 });
-/* 11) Antes y después deslizable (con pestañas si hay más de uno)
+
+/* 9) Antes y después deslizable (con pestañas si hay más de uno)
    Cada comparación se activa con una línea en la descripción:
    <div class="noor-ad" style="display:none">antes.jpg|despues.jpg|Etiqueta antes|Etiqueta después|Título|Pestaña</div>
    Las imágenes se suben a la raíz del repositorio de GitHub (rama main), no hace falta crear release para sumarlas */
-ready(function(){
+ready('antes y después',function(){
   var cfgs=document.querySelectorAll('.noor-ad');
   if(!cfgs.length||document.querySelector('.noor-ad-box'))return;
-  var sc=document.querySelector('script[src*="/NOOR@"]');
-  var base=sc?sc.src.replace(/NOOR@[^\/]+\/.*$/,'NOOR@main/'):'';
-  function url(f){f=(f||'').trim();return /^https?:/.test(f)?f:base+f}
+  var url=img;
   var items=[],vistos={};
   for(var k=0;k<cfgs.length;k++){
     var p=cfgs[k].textContent.split('|');
@@ -427,7 +497,7 @@ ready(function(){
   for(var r=0;r<cfgs.length;r++)if(cfgs[r].parentNode)cfgs[r].parentNode.removeChild(cfgs[r]);
 
   // La línea avanza sola con el scroll (deja ver el "después" a medida que se baja) hasta que la persona la toca
-  var quieto=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var quieto=QUIETO;
   if(!quieto){
     var vista=q('.noor-ad-view'),pend=false;
     function seguirScroll(){pend=false;if(tocado)return;
@@ -442,8 +512,8 @@ ready(function(){
   }
 });
 
-/* 12) Aviso de cookies (una sola vez por navegador) */
-if(location.pathname.indexOf('checkout')<0)ready(function(){
+/* 10) Aviso de cookies (una sola vez por navegador) */
+if(!CHECKOUT)ready('cookies',function(){
   var K='noor-cookies-ok';
   try{if(localStorage.getItem(K))return}catch(e){}
   var st=document.createElement('style');
@@ -455,7 +525,7 @@ if(location.pathname.indexOf('checkout')<0)ready(function(){
   'body.noor-cookies-on .noor-toast{display:none!important}';
   document.head.appendChild(st);
   var c=document.createElement('div');c.className='noor-cookies';c.setAttribute('role','region');c.setAttribute('aria-label','Aviso de cookies');
-  c.innerHTML='<p>Usamos cookies para que la tienda funcione, medir visitas y mostrarte anuncios. <a href="/politica-de-privacidad/">Ver política de privacidad</a></p><button type="button">Entendido</button>';
+  c.innerHTML='<p>Usamos cookies para que la tienda funcione, medir visitas y mostrarte anuncios. <a href="'+CONFIG.paginaPrivacidad+'">Ver política de privacidad</a></p><button type="button">Entendido</button>';
   document.body.appendChild(c);document.body.classList.add('noor-cookies-on');
   setTimeout(function(){c.classList.add('visible')},1500);
   c.querySelector('button').onclick=function(){
@@ -465,10 +535,10 @@ if(location.pathname.indexOf('checkout')<0)ready(function(){
   };
 });
 
-/* 13) Detalles animados: línea de progreso, resplandor dorado, estrellas, preguntas y medidas
+/* 11) Detalles animados: línea de progreso, resplandor dorado, estrellas, preguntas y medidas
    Todo se apaga si el celular tiene activado "reducir movimiento" */
-ready(function(){
-  var quieto=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+ready('detalles animados',function(){
+  var quieto=QUIETO;
   var ORO='#e0990f';
   var st=document.createElement('style');
   st.textContent=
@@ -485,7 +555,7 @@ ready(function(){
   document.head.appendChild(st);
 
   /* Línea dorada de progreso (no en el checkout) */
-  if(location.pathname.indexOf('checkout')<0&&!document.querySelector('.noor-progreso')){
+  if(!CHECKOUT&&!document.querySelector('.noor-progreso')){
     var bar=document.createElement('div');bar.className='noor-progreso';bar.innerHTML='<i></i>';
     document.body.appendChild(bar);
     var barI=bar.firstChild,pend=false;
@@ -577,9 +647,9 @@ ready(function(){
   })(cajas[c]);
 });
 
-/* 14) Scroll: banner con profundidad, títulos que se dibujan, botón de compra fijo y avisos de abajo ordenados */
-ready(function(){
-  var quieto=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+/* 12) Scroll: banner con profundidad, títulos que se dibujan, botón de compra fijo y avisos de abajo ordenados */
+ready('scroll',function(){
+  var quieto=QUIETO;
   var st=document.createElement('style');
   st.textContent=
     '.noor-trazo{display:inline-block;margin-bottom:10px;background-image:linear-gradient(90deg,#e0990f,#f3c561);background-repeat:no-repeat;background-position:0 100%;background-size:0% 3px;padding-bottom:9px;-webkit-box-decoration-break:slice;box-decoration-break:slice;transition:background-size 1.1s cubic-bezier(.2,.7,.2,1) .15s}'+
@@ -626,7 +696,7 @@ ready(function(){
   /* Botón de compra fijo (solo en productos) */
   var btn=document.querySelector('.js-addtocart:not(.js-addtocart-placeholder)')||document.querySelector('#product_form [type="submit"]');
   var fija=null,pe=document.querySelector('#price_display, .js-price-display');
-  if(btn&&location.pathname.indexOf('checkout')<0){
+  if(btn&&!CHECKOUT){
     fija=document.createElement('div');fija.className='noor-fija';fija.setAttribute('aria-hidden','true');
     var img=document.querySelector('meta[property="og:image"]'),h1=document.querySelector('h1');
     fija.innerHTML=(img?'<img alt="" src="'+img.content.replace(/"/g,'')+'">':'')+
@@ -670,18 +740,16 @@ ready(function(){
   cuadro();
 });
 
-/* 15) "Cambiá de clip en un segundo" (entre "Cuidamos tu visión" y el carrusel): el clip baja y se pega al armazón con el scroll
+/* 13) "Cambiá de clip en un segundo" (entre "Cuidamos tu visión" y el carrusel): el clip baja y se pega al armazón con el scroll
    Imágenes en la raíz del repo: iman-armazon.webp e iman-clip.webp (mismo tamaño, ya alineadas) */
-ready(function(){
+ready('cambiá de clip',function(){
   var cf=document.querySelector('.noor-cf-wrap');
   if(!cf||document.querySelector('.noor-iman'))return;
-  var sc=document.querySelector('script[src*="/NOOR@"]');
-  var base=sc?sc.src.replace(/NOOR@[^\/]+\/.*$/,'NOOR@main/'):'';
-  var quieto=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var quieto=QUIETO,M=CONFIG.iman;
   var cargadas=0,fallo=false,A=new Image(),C=new Image();
   A.onload=C.onload=function(){if(++cargadas===2&&!fallo)setTimeout(armar,200)};
   A.onerror=C.onerror=function(){fallo=true};
-  A.src=base+'iman-armazon.webp';C.src=base+'iman-clip.webp';
+  A.src=img(M.armazon);C.src=img(M.clip);
 
   function armar(){
     var st=document.createElement('style');
@@ -706,9 +774,9 @@ ready(function(){
 
     var s=document.createElement('section');s.className='noor-iman';
     s.innerHTML='<div class="noor-iman-esc">'+
-      '<p class="noor-iman-tag">SISTEMA MAGNÉTICO</p>'+
-      '<p class="noor-iman-tit">Cambiá de clip en un segundo</p>'+
-      '<p class="noor-iman-paso">Bajá para colocar el clip</p>'+
+      '<p class="noor-iman-tag">'+M.tag+'</p>'+
+      '<p class="noor-iman-tit">'+M.titulo+'</p>'+
+      '<p class="noor-iman-paso">'+M.pasos[0]+'</p>'+
       '<div class="noor-iman-foto"><div class="noor-iman-luz"></div><div class="noor-iman-sombra"></div>'+
         '<img class="noor-iman-a" alt="Armazón con cristales Control Blue" src="'+A.src+'">'+
         '<div class="noor-iman-chispa"></div>'+
@@ -734,7 +802,7 @@ ready(function(){
     for(var e=s.parentElement;e&&e!==document.documentElement;e=e.parentElement){var o=getComputedStyle(e);
       if(o.transform!=='none'||o.filter!=='none'||o.perspective!=='none'||/transform|filter/.test(o.willChange)){conTransform=true;break}}
 
-    if(quieto){paso.textContent='Los imanes lo encastran solos, sin tornillos';barra.style.transform='scaleX(1)';return}
+    if(quieto){paso.textContent=M.quieto;barra.style.transform='scaleX(1)';return}
     /* La sección mide lo que su contenido más el recorrido del scroll; mientras se anima queda centrada en pantalla */
     var top0=0,rec=1,pegado=false,txt='',pend=false,estado=-1;
     function medir(){
@@ -760,7 +828,7 @@ ready(function(){
       clip.style.transform='translate3d(0,'+((1-k)*-62)+'%,0) rotate('+((1-k)*-5)+'deg)';
       clip.style.opacity=Math.min(1,k*1.5);
       barra.style.transform='scaleX('+p+')';
-      var t=q<.12?'Bajá para colocar el clip':q<1?'Los imanes lo atraen solos…':'Listo: más contraste para manejar de noche';
+      var t=q<.12?M.pasos[0]:q<1?M.pasos[1]:M.pasos[2];
       if(t!==txt){txt=t;paso.textContent=t}
       if(q>=1&&!pegado){pegado=true;chispa.classList.remove('on');void chispa.offsetWidth;chispa.classList.add('on')}
       if(q<.95)pegado=false;
@@ -772,8 +840,8 @@ ready(function(){
   }
 });
 
-/* 16) Prolijidad: reseñas largas con "Leer más", sin etiquetas "0% OFF" ni precios tachados en $0 y un solo aviso de cookies */
-ready(function(){
+/* 14) Prolijidad: reseñas largas con "Leer más", sin etiquetas "0% OFF" ni precios tachados en $0 y un solo aviso de cookies */
+ready('prolijidad',function(){
   var st=document.createElement('style');
   st.textContent=
     '.noor-res-corta{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}'+
