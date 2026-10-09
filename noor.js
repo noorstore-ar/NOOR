@@ -686,7 +686,7 @@ ready(function(){
     var st=document.createElement('style');
     st.textContent=
       '.noor-iman{position:relative;height:240vh;background:#fff;font-family:inherit}'+
-      '.noor-iman-esc{position:sticky;top:var(--noor-top,0px);height:calc(100vh - var(--noor-top,0px));display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 18px;overflow:hidden;box-sizing:border-box;text-align:center}'+
+      '.noor-iman-esc{position:sticky;top:var(--noor-top,0px);height:calc(100vh - var(--noor-top,0px));display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:clamp(16px,7vh,64px) 18px 0;overflow:hidden;box-sizing:border-box;text-align:center}'+
       '.noor-iman-tag{margin:0;color:#e0990f;font-size:12px;font-weight:700;letter-spacing:4px}'+
       '.noor-iman-tit{margin:6px 0 4px;font-size:28px;font-weight:800;color:#15151a;line-height:1.15}'+
       '.noor-iman-paso{margin:0 0 26px;font-size:15px;color:#666;min-height:1.5em}'+
