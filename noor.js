@@ -22,7 +22,7 @@ ready(function(){
   }
 });
 
-/* 2) Avisos de ventas reales */
+/* 2) Avisos de ventas reales (la fecha se muestra solo si la venta es de los últimos 3 días) */
 var ventas=[
   ['Agustina N.','CABA','Clip 5 en 1','2026-09-25'],
   ['BRUNO R.','SALTA','Clip 5 en 1','2026-09-23'],
@@ -35,13 +35,13 @@ if(location.pathname.indexOf('checkout')<0)ready(function(){
   b.innerHTML='<div class="noor-toast-icon"></div><div><p class="noor-toast-title"></p><p class="noor-toast-text"></p><p class="noor-toast-tag"></p></div><button class="noor-toast-close">×</button>';
   document.body.appendChild(b);
   var i=0,off=false,q=function(s){return b.querySelector(s)};
-  function hace(f){var d=Math.floor((Date.now()-new Date(f+'T12:00:00'))/864e5);return d<=0?'Hoy':d===1?'Ayer':'Hace '+d+' días'}
+  function hace(f){var d=Math.floor((Date.now()-new Date(f+'T12:00:00'))/864e5);return d<=0?'Hoy':d===1?'Ayer':d<=3?'Hace '+d+' días':''}
   function tapa(){var h=document.querySelector('.noor-hero,.js-home-main-slider-container');if(!h)return false;var r=h.getBoundingClientRect();return r.bottom>90&&r.top<window.innerHeight}
   function ver(){if(off)return;if(tapa()){setTimeout(ver,1500);return}var v=ventas[i];
     q('.noor-toast-icon').textContent=v[0].charAt(0).toUpperCase();
     q('.noor-toast-title').textContent=v[0]+' de '+v[1];
     q('.noor-toast-text').textContent='Compró '+v[2];
-    q('.noor-toast-tag').textContent=hace(v[3])+' · ✔ Compra verificada';
+    var h=hace(v[3]);q('.noor-toast-tag').textContent=(h?h+' · ':'')+'✔ Compra verificada';
     b.classList.add('visible');setTimeout(esc,6000)}
   function esc(){b.classList.remove('visible');i=(i+1)%ventas.length;if(!off)setTimeout(ver,12000)}
   q('.noor-toast-close').onclick=function(){off=true;b.classList.remove('visible')};
