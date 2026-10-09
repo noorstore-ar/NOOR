@@ -669,4 +669,91 @@ ready(function(){
   cuadro();
 });
 
+/* 15) "Cambiá de clip en un segundo" (entre "Cuidamos tu visión" y el carrusel): el clip baja y se pega al armazón con el scroll
+   Imágenes en la raíz del repo: iman-armazon.webp e iman-clip.webp (mismo tamaño, ya alineadas) */
+ready(function(){
+  var cf=document.querySelector('.noor-cf-wrap');
+  if(!cf||document.querySelector('.noor-iman'))return;
+  var sc=document.querySelector('script[src*="/NOOR@"]');
+  var base=sc?sc.src.replace(/NOOR@[^\/]+\/.*$/,'NOOR@main/'):'';
+  var quieto=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var cargadas=0,fallo=false,A=new Image(),C=new Image();
+  A.onload=C.onload=function(){if(++cargadas===2&&!fallo)setTimeout(armar,200)};
+  A.onerror=C.onerror=function(){fallo=true};
+  A.src=base+'iman-armazon.webp';C.src=base+'iman-clip.webp';
+
+  function armar(){
+    var st=document.createElement('style');
+    st.textContent=
+      '.noor-iman{position:relative;height:240vh;background:#fff;font-family:inherit}'+
+      '.noor-iman-esc{position:sticky;top:var(--noor-top,0px);height:calc(100vh - var(--noor-top,0px));display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 18px;overflow:hidden;box-sizing:border-box;text-align:center}'+
+      '.noor-iman-tag{margin:0;color:#e0990f;font-size:12px;font-weight:700;letter-spacing:4px}'+
+      '.noor-iman-tit{margin:6px 0 4px;font-size:28px;font-weight:800;color:#15151a;line-height:1.15}'+
+      '.noor-iman-paso{margin:0 0 26px;font-size:15px;color:#666;min-height:1.5em}'+
+      '.noor-iman-foto{position:relative;width:min(92vw,620px);aspect-ratio:1200/416}'+
+      '.noor-iman-foto img{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none;user-select:none}'+
+      '.noor-iman-luz{position:absolute;left:50%;top:50%;width:110%;height:160%;translate:-50% -50%;border-radius:50%;background:radial-gradient(closest-side,rgba(224,153,15,.16),rgba(224,153,15,0));pointer-events:none}'+
+      '.noor-iman-chispa{position:absolute;left:50%;top:48%;width:80%;height:90%;translate:-50% -50%;border-radius:50%;background:radial-gradient(closest-side,rgba(243,197,97,.55),rgba(243,197,97,0));opacity:0;pointer-events:none}'+
+      '.noor-iman-chispa.on{animation:noorChispa .75s ease-out}'+
+      '@keyframes noorChispa{0%{opacity:0;scale:.6}30%{opacity:1}100%{opacity:0;scale:1.2}}'+
+      '.noor-iman-sombra{position:absolute;left:14%;right:14%;bottom:-4%;height:10%;border-radius:50%;background:radial-gradient(closest-side,rgba(0,0,0,.16),rgba(0,0,0,0))}'+
+      '.noor-iman-barra{width:min(60vw,300px);height:3px;border-radius:3px;background:#ececec;margin-top:30px;overflow:hidden}'+
+      '.noor-iman-barra i{display:block;height:100%;background:linear-gradient(90deg,#e0990f,#f3c561);transform-origin:0 50%;transform:scaleX(0)}'+
+      '@media (min-width:768px){.noor-iman-tit{font-size:34px}}'+
+      '@media (prefers-reduced-motion:reduce){.noor-iman{height:auto}.noor-iman-esc{position:relative;height:auto;padding:60px 18px}.noor-iman-chispa.on{animation:none}}';
+    document.head.appendChild(st);
+
+    var s=document.createElement('section');s.className='noor-iman';
+    s.innerHTML='<div class="noor-iman-esc">'+
+      '<p class="noor-iman-tag">SISTEMA MAGNÉTICO</p>'+
+      '<p class="noor-iman-tit">Cambiá de clip en un segundo</p>'+
+      '<p class="noor-iman-paso">Bajá para colocar el clip</p>'+
+      '<div class="noor-iman-foto"><div class="noor-iman-luz"></div><div class="noor-iman-sombra"></div>'+
+        '<img class="noor-iman-a" alt="Armazón con cristales Control Blue" src="'+A.src+'">'+
+        '<div class="noor-iman-chispa"></div>'+
+        '<img class="noor-iman-c" alt="Clip magnético amarillo" src="'+C.src+'"></div>'+
+      '<div class="noor-iman-barra"><i></i></div></div>';
+    // Va entre "Cuidamos tu visión" y el carrusel "Así se usa el Clip 5 en 1"
+    var benef=document.querySelector('.noor-benef');
+    if(benef&&benef.nextElementSibling===cf)benef.parentNode.insertBefore(s,cf);
+    else cf.parentNode.insertBefore(s,cf);
+
+    var esc=s.querySelector('.noor-iman-esc'),clip=s.querySelector('.noor-iman-c'),paso=s.querySelector('.noor-iman-paso'),
+        barra=s.querySelector('.noor-iman-barra i'),chispa=s.querySelector('.noor-iman-chispa');
+
+    /* Si el tema tiene un encabezado fijo arriba, la escena se acomoda debajo */
+    function alto(){
+      var top=0,els=document.elementsFromPoint?document.elementsFromPoint(innerWidth/2,2):[];
+      for(var i=0;i<els.length;i++){for(var e=els[i];e&&e!==document.body;e=e.parentElement){var p=getComputedStyle(e).position;
+        if(p==='fixed'||p==='sticky'){var b=e.getBoundingClientRect().bottom;if(b<innerHeight*.4)top=Math.max(top,b);break}}}
+      s.style.setProperty('--noor-top',Math.round(top)+'px');
+      return top;
+    }
+    /* Si algún contenedor del tema impide el "sticky", movemos la escena a mano */
+    var manual=false;
+    for(var e=s.parentElement;e&&e!==document.body;e=e.parentElement){var o=getComputedStyle(e);
+      if(/(hidden|auto|scroll|clip)/.test(o.overflowX+o.overflowY)){manual=true;break}}
+
+    if(quieto){paso.textContent='Los imanes lo encastran solos, sin tornillos';barra.style.transform='scaleX(1)';return}
+    var top0=alto(),pegado=false,txt='',pend=false;
+    function cuadro(){pend=false;
+      var r=s.getBoundingClientRect(),hEsc=innerHeight-top0,rec=r.height-hEsc;
+      var y=Math.max(0,Math.min(top0-r.top,rec)),p=rec>0?y/rec:0;
+      if(manual)esc.style.transform='translateY('+y+'px)';
+      var q=Math.min(p/.72,1),k=1-Math.pow(1-q,3);
+      clip.style.transform='translate3d(0,'+((1-k)*-62)+'%,0) rotate('+((1-k)*-5)+'deg)';
+      clip.style.opacity=Math.min(1,k*1.5);
+      barra.style.transform='scaleX('+p+')';
+      var t=q<.12?'Bajá para colocar el clip':q<1?'Los imanes lo atraen solos…':'Listo: más contraste para manejar de noche';
+      if(t!==txt){txt=t;paso.textContent=t}
+      if(q>=1&&!pegado){pegado=true;chispa.classList.remove('on');void chispa.offsetWidth;chispa.classList.add('on')}
+      if(q<.95)pegado=false;
+    }
+    function pedir(){if(!pend){pend=true;requestAnimationFrame(cuadro)}}
+    addEventListener('scroll',pedir,{passive:true});
+    addEventListener('resize',function(){top0=alto();pedir()});
+    cuadro();
+  }
+});
+
 })();
