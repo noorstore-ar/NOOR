@@ -473,7 +473,9 @@ ready(function(){
     '.noor-progreso i{display:block;height:3px;background:linear-gradient(90deg,#b87a06,'+ORO+',#f3c561);transform-origin:0 50%;transform:scaleX(0);box-shadow:0 0 8px rgba(224,153,15,.55)}'+
     '.noor-luz-on{isolation:isolate}'+
     '.noor-luz{position:absolute;inset:0;overflow:hidden;z-index:-1;pointer-events:none;border-radius:inherit}'+
-    '.noor-luz i{position:absolute;left:50%;top:50%;width:620px;height:620px;margin:-310px 0 0 -310px;border-radius:50%;background:radial-gradient(circle,rgba(224,153,15,.34) 0%,rgba(224,153,15,.11) 38%,rgba(224,153,15,0) 68%);animation:noorRespira 7s ease-in-out infinite}'+
+    '.noor-luz b{position:absolute;inset:0;background:rgba(0,0,0,.38)}'+
+    '.noor-luz i{position:absolute;left:50%;top:50%;width:760px;height:760px;margin:-380px 0 0 -380px;border-radius:50%;background:radial-gradient(circle,rgba(232,163,23,.55) 0%,rgba(224,153,15,.22) 32%,rgba(224,153,15,.06) 55%,rgba(224,153,15,0) 70%);animation:noorRespira 7s ease-in-out infinite}'+
+    '@media (max-width:640px){.noor-luz i{width:520px;height:520px;margin:-260px 0 0 -260px}}'+
     '@keyframes noorRespira{0%,100%{opacity:.75;scale:1}50%{opacity:1;scale:1.08}}'+
     '.noor-est{display:inline-block;color:#d9d9d9;transition:color .35s ease,transform .35s cubic-bezier(.3,1.6,.5,1)}'+
     '.noor-est.on{color:'+ORO+';transform:scale(1.18)}.noor-est.on.ok{transform:none}'+
@@ -491,15 +493,7 @@ ready(function(){
     window.addEventListener('resize',prog);prog();
   }
 
-  /* Resplandor dorado en las secciones oscuras, que sigue suave al mouse en compu */
-  function oscuro(el){
-    while(el&&el!==document.documentElement){
-      var c=getComputedStyle(el).backgroundColor,m=c&&c.match(/[\d.]+/g);
-      if(m&&(m.length<4||+m[3]>0.5)){return (0.299*m[0]+0.587*m[1]+0.114*m[2])<70}
-      el=el.parentElement;
-    }
-    return false;
-  }
+  /* Resplandor dorado en "Cuidamos tu visión", que sigue suave al mouse en compu */
   var mouse=!quieto&&window.matchMedia('(hover: hover) and (pointer: fine)').matches;
   function seguir(caja,halo){
     if(!mouse)return;
@@ -511,17 +505,13 @@ ready(function(){
     caja.addEventListener('pointerleave',function(){tx=0;ty=0;if(!anim)anim=requestAnimationFrame(paso)});
   }
   setTimeout(function(){
-    var secs=document.querySelectorAll('.noor-benef, .noor-hero, .noor-reviews-full');
-    for(var i=0;i<secs.length;i++){
-      var s=secs[i];if(s.getAttribute('data-luz'))continue;s.setAttribute('data-luz','1');
-      var propio=s.querySelector('.noor-benef-glow');
-      if(propio){seguir(s,propio);continue}         // ya tiene su brillo: solo lo hacemos seguir al mouse
-      if(!oscuro(s))continue;                        // solo en fondos oscuros
-      if(getComputedStyle(s).position==='static')s.style.position='relative';
-      s.classList.add('noor-luz-on');
-      var l=document.createElement('div');l.className='noor-luz';l.innerHTML='<i></i>';
-      s.insertBefore(l,s.firstChild);seguir(s,l.firstChild);
-    }
+    var s=document.querySelector('.noor-benef');
+    if(!s||s.getAttribute('data-luz'))return;s.setAttribute('data-luz','1');
+    // La línea dorada propia de la sección (.noor-benef-glow) queda quieta, como antes
+    if(getComputedStyle(s).position==='static')s.style.position='relative';
+    s.classList.add('noor-luz-on');
+    var l=document.createElement('div');l.className='noor-luz';l.innerHTML='<b></b><i></i>';
+    s.insertBefore(l,s.firstChild);seguir(s,l.querySelector('i'));
   },400);
 
   /* Al aparecer en pantalla */
