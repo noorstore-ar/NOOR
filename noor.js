@@ -31,6 +31,7 @@ var ventas=[
   ['JERO F.','FORMOSA','Clip 5 en 1','2026-09-25']
 ];
 if(location.pathname.indexOf('checkout')<0)ready(function(){
+  if(document.body.classList.contains('template-home'))return; // en el inicio no, para que se vea más tranquilo
   var b=document.createElement('div');b.className='noor-toast';
   b.innerHTML='<div class="noor-toast-icon"></div><div><p class="noor-toast-title"></p><p class="noor-toast-text"></p><p class="noor-toast-tag"></p></div><button class="noor-toast-close">×</button>';
   document.body.appendChild(b);
@@ -43,15 +44,15 @@ if(location.pathname.indexOf('checkout')<0)ready(function(){
     q('.noor-toast-text').textContent='Compró '+v[2];
     var h=hace(v[3]);q('.noor-toast-tag').textContent=(h?h+' · ':'')+'✔ Compra verificada';
     b.classList.add('visible');setTimeout(esc,6000)}
-  function esc(){b.classList.remove('visible');i=(i+1)%ventas.length;if(!off)setTimeout(ver,12000)}
+  function esc(){b.classList.remove('visible');i=(i+1)%ventas.length;if(!off)setTimeout(ver,25000)}
   q('.noor-toast-close').onclick=function(){off=true;b.classList.remove('visible')};
-  setTimeout(ver,5000);
+  setTimeout(ver,10000);
 });
 
 /* 3) Barra de anuncios */
 ready(function(){
   if(document.querySelector('.noor-topbar'))return;
-  var m=['🚚 ENVÍO GRATIS A TODO EL PAÍS','💳 3 CUOTAS SIN INTERÉS','🔥 HASTA 50% OFF','💸 10% OFF EXTRA CON TRANSFERENCIA'];
+  var m=['🚚 ENVÍO GRATIS A TODO EL PAÍS','💳 3 CUOTAS SIN INTERÉS','💸 10% OFF EXTRA CON TRANSFERENCIA'];
   var h='<span>'+m.join('</span><span>')+'</span>';h=h+h+h;
   var b=document.createElement('div');b.className='noor-topbar';
   b.innerHTML='<div class="noor-topbar-track">'+h+h+'</div>';
@@ -88,7 +89,7 @@ ready(function(){
       it[i].style.zIndex=10-s;it[i].style.opacity=s>2?0:1;it[i].style.filter=k?'brightness(.75)':'none';
       pt[i].className=i===a?'activo':''}}
   function ir(i){a=(i+n)%n;pin();re()}
-  function re(){clearInterval(tm);tm=setInterval(function(){ir(a+1)},3500)}
+  function re(){clearInterval(tm);tm=setInterval(function(){ir(a+1)},6000)}
   for(var j=0;j<n;j++){it[j].onclick=pt[j].onclick=function(){ir(+this.getAttribute('data-i'))}}
   var z=w.querySelector('.noor-cf'),x=null;
   z.addEventListener('touchstart',function(e){x=e.touches[0].clientX},{passive:true});
@@ -769,6 +770,50 @@ ready(function(){
     addEventListener('resize',function(){medir();pedir()});
     cuadro();
   }
+});
+
+/* 16) Prolijidad: reseñas largas con "Leer más", sin etiquetas "0% OFF" ni precios tachados en $0 y un solo aviso de cookies */
+ready(function(){
+  var st=document.createElement('style');
+  st.textContent=
+    '.noor-res-corta{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}'+
+    '.noor-res-mas{display:inline-block;margin:4px 0 6px;padding:0;border:0;background:none;font:inherit;font-size:13px;font-weight:700;color:#e0990f;cursor:pointer}'+
+    '.noor-res-mas:focus-visible{outline:2px solid #e0990f;outline-offset:2px}';
+  document.head.appendChild(st);
+
+  function limpiar(){
+    /* Reseñas: el texto completo del cliente queda intacto, solo se muestran las primeras líneas */
+    var zonas=document.querySelectorAll('.noor-reviews');
+    for(var z=0;z<zonas.length;z++){
+      var els=zonas[z].querySelectorAll('p,div,span,blockquote');
+      for(var i=0;i<els.length;i++){var e=els[i];
+        if(e.getAttribute('data-corta')||e.querySelector('p,div,blockquote'))continue;
+        var t=(e.textContent||'').trim();
+        if(!/^["“]/.test(t)||t.length<120)continue;
+        e.setAttribute('data-corta','1');e.classList.add('noor-res-corta');
+        var bt=document.createElement('button');bt.type='button';bt.className='noor-res-mas';bt.textContent='Leer más';
+        bt.onclick=(function(e,bt){return function(ev){ev.stopPropagation();var c=e.classList.toggle('noor-res-corta');bt.textContent=c?'Leer más':'Leer menos'}})(e,bt);
+        e.parentNode.insertBefore(bt,e.nextSibling);
+      }
+    }
+    /* Etiquetas "0% OFF" y precios tachados en $0,00 */
+    var todo=document.querySelectorAll('body *');
+    for(var k=0;k<todo.length;k++){var x=todo[k];
+      if(x.children.length)continue;
+      var tx=(x.textContent||'').replace(/\s+/g,' ').trim();
+      if(/^-?0\s?%\s?OFF$/i.test(tx)){x.style.setProperty('display','none','important');continue}
+      if(/^\$\s?0(,00)?$/.test(tx)){var cl=(x.className&&x.className.toString())||'';
+        if(/compare|before|old|tachad/i.test(cl)||/^(S|DEL|STRIKE)$/.test(x.tagName)||x.closest('s,del,[class*="compare"]'))x.style.setProperty('display','none','important')}
+    }
+    /* Aviso de cookies del tema: queda solo el de Noor, que enlaza a la política de privacidad */
+    for(var c=0;c<todo.length;c++){var y=todo[c];
+      if(y.children.length>3)continue;
+      var yt=y.textContent||'';if(yt.length>300||!/aceptás el uso de cookies/i.test(yt))continue;
+      for(var u=y;u&&u!==document.body;u=u.parentElement){var cs=getComputedStyle(u),cn=(u.className&&u.className.toString())||'';
+        if(cs.position==='fixed'||/cookie|notification/i.test(cn)){u.style.setProperty('display','none','important');break}}
+    }
+  }
+  limpiar();setTimeout(limpiar,1500);
 });
 
 })();
