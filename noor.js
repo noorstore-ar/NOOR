@@ -685,8 +685,8 @@ ready(function(){
   function armar(){
     var st=document.createElement('style');
     st.textContent=
-      '.noor-iman{position:relative;height:240vh;background:#fff;font-family:inherit}'+
-      '.noor-iman-esc{position:sticky;top:var(--noor-top,0px);height:calc(100vh - var(--noor-top,0px));display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:clamp(16px,7vh,64px) 18px 0;overflow:hidden;box-sizing:border-box;text-align:center}'+
+      '.noor-iman{position:relative;background:#fff;font-family:inherit}'+
+      '.noor-iman-esc{position:sticky;top:var(--noor-top,0px);display:flex;flex-direction:column;align-items:center;padding:clamp(28px,6vh,56px) 18px;overflow:hidden;box-sizing:border-box;text-align:center}'+
       '.noor-iman-tag{margin:0;color:#e0990f;font-size:12px;font-weight:700;letter-spacing:4px}'+
       '.noor-iman-tit{margin:6px 0 4px;font-size:28px;font-weight:800;color:#15151a;line-height:1.15}'+
       '.noor-iman-paso{margin:0 0 26px;font-size:15px;color:#666;min-height:1.5em}'+
@@ -700,7 +700,7 @@ ready(function(){
       '.noor-iman-barra{width:min(60vw,300px);height:3px;border-radius:3px;background:#ececec;margin-top:30px;overflow:hidden}'+
       '.noor-iman-barra i{display:block;height:100%;background:linear-gradient(90deg,#e0990f,#f3c561);transform-origin:0 50%;transform:scaleX(0)}'+
       '@media (min-width:768px){.noor-iman-tit{font-size:34px}}'+
-      '@media (prefers-reduced-motion:reduce){.noor-iman{height:auto}.noor-iman-esc{position:relative;height:auto;padding:60px 18px}.noor-iman-chispa.on{animation:none}}';
+      '@media (prefers-reduced-motion:reduce){.noor-iman{height:auto!important}.noor-iman-esc{position:relative}.noor-iman-chispa.on{animation:none}}';
     document.head.appendChild(st);
 
     var s=document.createElement('section');s.className='noor-iman';
@@ -726,7 +726,6 @@ ready(function(){
       var top=0,els=document.elementsFromPoint?document.elementsFromPoint(innerWidth/2,2):[];
       for(var i=0;i<els.length;i++){for(var e=els[i];e&&e!==document.body;e=e.parentElement){var p=getComputedStyle(e).position;
         if(p==='fixed'||p==='sticky'){var b=e.getBoundingClientRect().bottom;if(b<innerHeight*.4)top=Math.max(top,b);break}}}
-      s.style.setProperty('--noor-top',Math.round(top)+'px');
       return top;
     }
     /* Si algún contenedor del tema impide el "sticky", movemos la escena a mano */
@@ -735,9 +734,18 @@ ready(function(){
       if(/(hidden|auto|scroll|clip)/.test(o.overflowX+o.overflowY)){manual=true;break}}
 
     if(quieto){paso.textContent='Los imanes lo encastran solos, sin tornillos';barra.style.transform='scaleX(1)';return}
-    var top0=alto(),pegado=false,txt='',pend=false;
+    /* La sección mide lo que su contenido más el recorrido del scroll; mientras se anima queda centrada en pantalla */
+    var top0=0,rec=1,pegado=false,txt='',pend=false;
+    function medir(){
+      var hdr=alto(),hE=esc.offsetHeight;
+      top0=Math.round(hdr+Math.max(0,(innerHeight-hdr-hE)/2));
+      rec=Math.round(innerHeight*.8);
+      s.style.setProperty('--noor-top',top0+'px');
+      s.style.height=(hE+rec)+'px';
+    }
+    medir();
     function cuadro(){pend=false;
-      var r=s.getBoundingClientRect(),hEsc=innerHeight-top0,rec=r.height-hEsc;
+      var r=s.getBoundingClientRect();
       var y=Math.max(0,Math.min(top0-r.top,rec)),p=rec>0?y/rec:0;
       if(manual)esc.style.transform='translateY('+y+'px)';
       var q=Math.min(p/.72,1),k=1-Math.pow(1-q,3);
@@ -751,7 +759,7 @@ ready(function(){
     }
     function pedir(){if(!pend){pend=true;requestAnimationFrame(cuadro)}}
     addEventListener('scroll',pedir,{passive:true});
-    addEventListener('resize',function(){top0=alto();pedir()});
+    addEventListener('resize',function(){medir();pedir()});
     cuadro();
   }
 });
