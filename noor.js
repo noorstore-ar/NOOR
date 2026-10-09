@@ -279,11 +279,11 @@ ready(function(){
   cfg.parentNode.removeChild(cfg);
 
   var css=
-  '.noor-deal{position:relative;margin:0 0 14px;border:2px solid #e0990f;border-radius:14px;background:#fffaf0;overflow:hidden;opacity:0;font-family:inherit}'+
-  '.noor-deal.noor-in{animation:noorDealIn .7s cubic-bezier(.2,.9,.3,1.2) forwards}'+
-  '.noor-deal:after{content:"";position:absolute;top:0;left:-60%;width:40%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.75),transparent);pointer-events:none}'+
-  '.noor-deal.noor-in:after{animation:noorSheen 1.1s .7s ease-out}'+
-  '.noor-deal-main{display:flex;align-items:center;gap:12px;padding:16px}'+
+  '@property --noor-giro{syntax:"<angle>";inherits:false;initial-value:0deg}'+
+  '.noor-deal{position:relative;margin:0 0 14px;border:2px solid transparent;border-radius:14px;background:linear-gradient(#fffaf0,#fffaf0) padding-box,conic-gradient(from var(--noor-giro),#e0990f 0deg,#e0990f 260deg,#f3c561 300deg,#fff6dc 320deg,#f3c561 340deg,#e0990f 360deg) border-box;overflow:hidden;opacity:0;font-family:inherit;animation:noorGiro 6s linear infinite}'+
+  '@keyframes noorGiro{to{--noor-giro:360deg}}'+
+  '.noor-deal.noor-in{animation:noorDealIn .7s cubic-bezier(.2,.9,.3,1.2) forwards,noorGiro 6s linear infinite}'+
+      '.noor-deal-main{display:flex;align-items:center;gap:12px;padding:16px}'+
   '.noor-deal-dot{flex:0 0 22px;height:22px;border-radius:50%;border:2px solid #e0990f;display:flex;align-items:center;justify-content:center;animation:noorDot 2.4s 1.5s infinite}'+
   '.noor-deal-dot:before{content:"";width:12px;height:12px;border-radius:50%;background:#e0990f}'+
   '.noor-deal-info{flex:1;min-width:0}'+
@@ -304,7 +304,7 @@ ready(function(){
   '@keyframes noorDot{0%,100%{box-shadow:0 0 0 0 rgba(224,153,15,.45)}50%{box-shadow:0 0 0 7px rgba(224,153,15,0)}}'+
   '@keyframes noorNudge{0%,100%{transform:none}20%{transform:translateY(-3px) scale(1.02)}40%{transform:none}60%{transform:translateY(-2px)}}'+
   '@media (max-width:480px){.noor-deal-tit{font-size:15px}.noor-deal-price{font-size:19px}}'+
-  '@media (prefers-reduced-motion:reduce){.noor-deal,.noor-deal.noor-in{animation:none;opacity:1}.noor-deal:after,.noor-deal-dot,.noor-nudge{animation:none}}';
+  '@media (prefers-reduced-motion:reduce){.noor-deal,.noor-deal.noor-in{animation:none;opacity:1}.noor-deal-dot,.noor-nudge{animation:none}}';
   var st=document.createElement('style');st.textContent=css;document.head.appendChild(st);
 
   var d=document.createElement('div');d.className='noor-deal';
@@ -336,7 +336,7 @@ ready(function(){
   }
   function habil(n){var x=new Date(),c=0;while(c<n){x.setDate(x.getDate()+1);var w=x.getDay();if(w>0&&w<6)c++}return x}
   var o={weekday:'short',day:'numeric',month:'short'};
-  q('.noor-deal-ship').innerHTML='Envío gratis · llega aprox. entre el <b>'+habil(3).toLocaleDateString('es-AR',o)+'</b> y el <b>'+habil(6).toLocaleDateString('es-AR',o)+'</b>';
+  q('.noor-deal-ship').innerHTML='Envío gratis · llega aprox. entre el <b>'+habil(4).toLocaleDateString('es-AR',o)+'</b> y el <b>'+habil(7).toLocaleDateString('es-AR',o)+'</b>';
   upd();
   if(pe&&window.MutationObserver)new MutationObserver(upd).observe(pe,{childList:true,subtree:true,characterData:true});
 
@@ -460,6 +460,135 @@ if(location.pathname.indexOf('checkout')<0)ready(function(){
     c.classList.remove('visible');document.body.classList.remove('noor-cookies-on');
     setTimeout(function(){c.remove()},500);
   };
+});
+
+/* 13) Detalles animados: línea de progreso, resplandor dorado, estrellas, preguntas y medidas
+   Todo se apaga si el celular tiene activado "reducir movimiento" */
+ready(function(){
+  var quieto=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var ORO='#e0990f';
+  var st=document.createElement('style');
+  st.textContent=
+    '.noor-progreso{position:fixed;top:0;left:0;right:0;height:3px;z-index:100000;pointer-events:none;padding-top:env(safe-area-inset-top,0px);box-sizing:content-box}'+
+    '.noor-progreso i{display:block;height:3px;background:linear-gradient(90deg,#b87a06,'+ORO+',#f3c561);transform-origin:0 50%;transform:scaleX(0);box-shadow:0 0 8px rgba(224,153,15,.55)}'+
+    '.noor-luz-on{isolation:isolate}'+
+    '.noor-luz{position:absolute;inset:0;overflow:hidden;z-index:-1;pointer-events:none;border-radius:inherit}'+
+    '.noor-luz i{position:absolute;left:50%;top:50%;width:620px;height:620px;margin:-310px 0 0 -310px;border-radius:50%;background:radial-gradient(circle,rgba(224,153,15,.34) 0%,rgba(224,153,15,.11) 38%,rgba(224,153,15,0) 68%);animation:noorRespira 7s ease-in-out infinite}'+
+    '@keyframes noorRespira{0%,100%{opacity:.75;scale:1}50%{opacity:1;scale:1.08}}'+
+    '.noor-est{display:inline-block;color:#d9d9d9;transition:color .35s ease,transform .35s cubic-bezier(.3,1.6,.5,1)}'+
+    '.noor-est.on{color:'+ORO+';transform:scale(1.18)}.noor-est.on.ok{transform:none}'+
+    '.noor-faq-body{overflow:hidden}'+
+    '@media (prefers-reduced-motion:reduce){.noor-luz i{animation:none}.noor-est{transition:none}}';
+  document.head.appendChild(st);
+
+  /* Línea dorada de progreso (no en el checkout) */
+  if(location.pathname.indexOf('checkout')<0&&!document.querySelector('.noor-progreso')){
+    var bar=document.createElement('div');bar.className='noor-progreso';bar.innerHTML='<i></i>';
+    document.body.appendChild(bar);
+    var barI=bar.firstChild,pend=false;
+    function prog(){pend=false;var h=document.documentElement.scrollHeight-window.innerHeight;barI.style.transform='scaleX('+(h>0?Math.min(window.scrollY/h,1):0)+')'}
+    window.addEventListener('scroll',function(){if(!pend){pend=true;requestAnimationFrame(prog)}},{passive:true});
+    window.addEventListener('resize',prog);prog();
+  }
+
+  /* Resplandor dorado en las secciones oscuras, que sigue suave al mouse en compu */
+  function oscuro(el){
+    while(el&&el!==document.documentElement){
+      var c=getComputedStyle(el).backgroundColor,m=c&&c.match(/[\d.]+/g);
+      if(m&&(m.length<4||+m[3]>0.5)){return (0.299*m[0]+0.587*m[1]+0.114*m[2])<70}
+      el=el.parentElement;
+    }
+    return false;
+  }
+  var mouse=!quieto&&window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+  function seguir(caja,halo){
+    if(!mouse)return;
+    var tx=0,ty=0,x=0,y=0,anim=null;
+    function paso(){x+=(tx-x)*.06;y+=(ty-y)*.06;halo.style.translate=x+'px '+y+'px';
+      anim=(Math.abs(tx-x)>.5||Math.abs(ty-y)>.5)?requestAnimationFrame(paso):null}
+    caja.addEventListener('pointermove',function(e){var r=caja.getBoundingClientRect();
+      tx=(e.clientX-r.left-r.width/2)*.45;ty=(e.clientY-r.top-r.height/2)*.45;if(!anim)anim=requestAnimationFrame(paso)});
+    caja.addEventListener('pointerleave',function(){tx=0;ty=0;if(!anim)anim=requestAnimationFrame(paso)});
+  }
+  setTimeout(function(){
+    var secs=document.querySelectorAll('.noor-benef, .noor-hero, .noor-reviews-full');
+    for(var i=0;i<secs.length;i++){
+      var s=secs[i];if(s.getAttribute('data-luz'))continue;s.setAttribute('data-luz','1');
+      var propio=s.querySelector('.noor-benef-glow');
+      if(propio){seguir(s,propio);continue}         // ya tiene su brillo: solo lo hacemos seguir al mouse
+      if(!oscuro(s))continue;                        // solo en fondos oscuros
+      if(getComputedStyle(s).position==='static')s.style.position='relative';
+      s.classList.add('noor-luz-on');
+      var l=document.createElement('div');l.className='noor-luz';l.innerHTML='<i></i>';
+      s.insertBefore(l,s.firstChild);seguir(s,l.firstChild);
+    }
+  },400);
+
+  /* Al aparecer en pantalla */
+  function alVer(el,fn){
+    if(quieto||!window.IntersectionObserver){fn();return}
+    var io=new IntersectionObserver(function(e){if(e[0].isIntersecting){io.disconnect();fn()}},{threshold:.35});
+    io.observe(el);
+  }
+
+  /* Estrellas que se llenan doradas una por una */
+  setTimeout(function(){
+    var zonas=document.querySelectorAll('.noor-reviews');
+    for(var z=0;z<zonas.length;z++){
+      var w=document.createTreeWalker(zonas[z],NodeFilter.SHOW_TEXT,null,false),nodos=[],n;
+      while((n=w.nextNode()))if(n.nodeValue.indexOf('★')>-1&&!(n.parentNode.classList&&n.parentNode.classList.contains('noor-est')))nodos.push(n);
+      nodos.forEach(function(t){
+        var f=document.createDocumentFragment(),grupo=[];
+        t.nodeValue.split('').forEach(function(ch){
+          if(ch==='★'){var sp=document.createElement('span');sp.className='noor-est';sp.textContent='★';f.appendChild(sp);grupo.push(sp)}
+          else f.appendChild(document.createTextNode(ch));
+        });
+        var padre=t.parentNode;padre.replaceChild(f,t);
+        alVer(padre,function(){grupo.forEach(function(sp,i){
+          setTimeout(function(){sp.classList.add('on');setTimeout(function(){sp.classList.add('ok')},300)},quieto?0:i*110);
+        })});
+      });
+    }
+  },300);
+
+  /* Preguntas frecuentes: abren y cierran deslizando */
+  var dets=document.querySelectorAll('.noor-faq details');
+  for(var d=0;d<dets.length;d++)(function(det){
+    var sum=det.querySelector('summary');if(!sum||det.querySelector('.noor-faq-body'))return;
+    var body=document.createElement('div');body.className='noor-faq-body';
+    while(sum.nextSibling)body.appendChild(sum.nextSibling);
+    det.appendChild(body);
+    if(quieto||!body.animate)return;
+    var anim=null;
+    sum.addEventListener('click',function(e){
+      e.preventDefault();if(anim)anim.cancel();
+      if(!det.open){
+        det.open=true;var h=body.scrollHeight;
+        anim=body.animate([{height:'0px',opacity:0},{height:h+'px',opacity:1}],{duration:320,easing:'cubic-bezier(.2,.7,.2,1)'});
+        anim.onfinish=function(){anim=null};
+      }else{
+        anim=body.animate([{height:body.scrollHeight+'px',opacity:1},{height:'0px',opacity:0}],{duration:260,easing:'cubic-bezier(.4,0,.2,1)'});
+        anim.onfinish=function(){det.open=false;anim=null};
+      }
+    });
+  })(dets[d]);
+
+  /* Medidas: los números cuentan hasta su valor al aparecer */
+  var cajas=document.querySelectorAll('.noor-medidas');
+  for(var c=0;c<cajas.length;c++)(function(caja){
+    var nums=[],todos=caja.querySelectorAll('strong,b,td');
+    for(var i=0;i<todos.length;i++){var el=todos[i],m=/^\s*(\d{2,3})\s*mm\s*$/.exec(el.textContent);
+      if(m&&!el.children.length)nums.push([el,+m[1]])}
+    if(!nums.length||quieto)return;
+    nums.forEach(function(x){x[0].textContent='0 mm'});
+    alVer(caja,function(){
+      var t0=null;
+      function paso(t){if(!t0)t0=t;var f=Math.min((t-t0)/900,1),e=1-Math.pow(1-f,3);
+        nums.forEach(function(x){x[0].textContent=Math.round(x[1]*e)+' mm'});
+        if(f<1)requestAnimationFrame(paso)}
+      requestAnimationFrame(paso);
+    });
+  })(cajas[c]);
 });
 
 })();
