@@ -20,7 +20,7 @@ async function abrir(url) {
   const r = await pagina.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
   await pagina.waitForTimeout(4000);
   const titulo = await pagina.title();
-  if (/just a moment|attention required/i.test(titulo)) { avisos.push('La tienda pidió verificación anti-robots: no se pudo revisar ' + url); return null; }
+  if (/just a moment|attention required/i.test(titulo)) { problemas.push('La protección anti-robots no dejó revisar ' + url + ' (si se repite varios días, avisar)'); return null; }
   return r;
 }
 async function bajar(px) { await pagina.mouse.wheel(0, px); await pagina.waitForTimeout(900); }
@@ -42,7 +42,7 @@ if (r1) {
     ok(await pagina.$(sel) !== null, nombre);
   await bajar(1500); await pagina.waitForTimeout(1500);
   ok(await pagina.$('.noor-iman') !== null, '"Cambiá de clip en un segundo"');
-  const productos = await pagina.$$eval('[data-store^="product-item"], .js-item-product', l => l.length);
+  const productos = await pagina.$$eval('[data-store^="product-item"], .js-item-product', l => l.filter(e => e.offsetParent !== null).length);
   ok(productos > 0, 'Se ven productos en el inicio (' + productos + ')');
 }
 
