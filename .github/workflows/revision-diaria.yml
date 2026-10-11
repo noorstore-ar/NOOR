@@ -1,0 +1,35 @@
+# Revisión automática de Noor Store: todos los días a las 9 (hora argentina) y cuando se cambia noor.js.
+# Si encuentra un problema, la ejecución queda en rojo y GitHub te manda un mail.
+name: Revisión diaria de la tienda
+
+on:
+  schedule:
+    - cron: '0 12 * * *'        # 12:00 UTC = 9:00 en Argentina
+  push:
+    paths: ['noor.js']
+  workflow_dispatch:            # botón "Run workflow" para correrla a mano
+
+permissions:
+  contents: read
+
+jobs:
+  codigo:
+    name: Revisar que noor.js no tenga errores de escritura
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: node --check noor.js
+
+  tienda:
+    name: Revisar la tienda en un navegador real
+    runs-on: ubuntu-latest
+    needs: codigo
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm install --no-save playwright@1.48.2
+      - run: npx playwright install --with-deps chromium
+      - run: node tests/revisar-tienda.mjs
