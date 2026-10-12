@@ -19,7 +19,7 @@
     5  "Cuidamos tu visión"                   12  Scroll (banner, títulos, compra fija, avisos de abajo)
     6  Inicio: máximo de productos            13  "Cambiá de clip en un segundo"
     7  Cuadro de medidas                      14  Prolijidad (Leer más, 0% OFF, cookies del tema)
-    8a Banner principal
+    8a Banner principal                     15  Accesibilidad (contraste y tamaños)
 
    ETIQUETAS EN LAS DESCRIPCIONES DE PRODUCTO (ocultas con style="display:none")
    - Tarjeta de oferta:  <div class="noor-oferta">Título|Subtítulo|Regalo|sin transferencia</div>
@@ -64,21 +64,9 @@
     },
     // Carrusel "Así se usa el Clip 5 en 1": [foto, título, clip]. Foto = archivo del repo o URL completa
     carrusel: [
-      [
-        'https://d1a9qnv764bsoo.cloudfront.net/stores/007/899/679/rte/hf_20260925_170420_02e40c43-ef30-4fed-b7ed-ba38790f422e.png',
-        'Al volante de noche',
-        'CLIP AMARILLO'
-      ],
-      [
-        'https://d1a9qnv764bsoo.cloudfront.net/stores/007/899/679/rte/ChatGPT Image 25 sept 2026, 04_15_00 p.m..png',
-        'Con el sol fuerte',
-        'CLIP AZUL ESPEJADO'
-      ],
-      [
-        'https://d1a9qnv764bsoo.cloudfront.net/stores/007/899/679/rte/hf_20260925_190928_46c4e36e-7057-4db0-a07f-700d1a313e06.png',
-        'Home office',
-        'CONTROL BLUE'
-      ],
+      ['carrusel-volante.webp', 'Al volante de noche', 'CLIP AMARILLO'],
+      ['carrusel-sol-fuerte.webp', 'Con el sol fuerte', 'CLIP AZUL ESPEJADO'],
+      ['carrusel-home-office.webp', 'Home office', 'CONTROL BLUE'],
       ['carrusel-ciudad.webp', 'En la ciudad', 'CLIP NEGRO DEGRADÉ'],
       ['carrusel-paseo.webp', 'De paseo', 'CLIP MARRÓN'],
       ['carrusel-sol-intenso.webp', 'Sol intenso', 'CLIP NEGRO']
@@ -89,6 +77,8 @@
     cuotas: 3,
     descuentoTransferencia: 0.1,
     paginaPrivacidad: '/politica-de-privacidad/',
+    oroTexto: '#9a6600', // dorado para textos chicos sobre blanco (accesible)
+    oroTitulo: '#c4850c', // dorado para títulos grandes sobre blanco (accesible)
     iman: {
       // sección "Cambiá de clip en un segundo"
       armazon: 'iman-armazon.webp',
@@ -251,14 +241,19 @@
         (fotos[i][1] + ' – ' + fotos[i][2]).replace(/"/g, '') +
         '" data-i="' +
         i +
-        '" style="background-image:url(\'' +
+        '" data-bg="' +
         img(fotos[i][0]) +
-        '\')"><div class="noor-cf-caption">' +
+        '"><div class="noor-cf-caption">' +
         fotos[i][1] +
         '<span>' +
         fotos[i][2] +
         '</span></div></div>';
-      d += '<button data-i="' + i + '"></button>';
+      d +=
+        '<button data-i="' +
+        i +
+        '" aria-label="' +
+        ('Ver foto ' + (i + 1) + ': ' + fotos[i][1]).replace(/"/g, '') +
+        '"></button>';
     }
     w.innerHTML =
       '<p class="noor-cf-tag">UN LOOK PARA CADA MOMENTO</p><p class="noor-cf-title">Así se usa el Clip 5 en 1</p><p class="noor-cf-sub">Un armazón, cinco clips y la pantalla cubierta.</p><div class="noor-cf">' +
@@ -267,6 +262,25 @@
       d +
       '</div>';
     dest.parentNode.insertBefore(w, dest);
+    // Las fotos (pesadas) se descargan recién cuando el carrusel está por verse
+    function fondos() {
+      [].forEach.call(w.querySelectorAll('.noor-cf-card[data-bg]'), function (el) {
+        el.style.backgroundImage = "url('" + el.getAttribute('data-bg') + "')";
+        el.removeAttribute('data-bg');
+      });
+    }
+    if (window.IntersectionObserver) {
+      var ioF = new IntersectionObserver(
+        function (e) {
+          if (e[0].isIntersecting) {
+            ioF.disconnect();
+            fondos();
+          }
+        },
+        { rootMargin: '600px 0px' }
+      );
+      ioF.observe(w);
+    } else fondos();
     var it = w.querySelectorAll('.noor-cf-card'),
       pt = w.querySelectorAll('.noor-cf-dots button'),
       n = it.length,
@@ -1427,8 +1441,13 @@
     A.onerror = C.onerror = function () {
       fallo = true;
     };
-    A.src = img(M.armazon);
-    C.src = img(M.clip);
+    function cargar() {
+      A.src = img(M.armazon);
+      C.src = img(M.clip);
+    }
+    // Se piden cuando la página ya terminó de cargar, para no frenar el banner
+    if (document.readyState === 'complete') cargar();
+    else window.addEventListener('load', cargar);
 
     function armar() {
       var st = document.createElement('style');
@@ -1671,5 +1690,28 @@
     }
     limpiar();
     setTimeout(limpiar, 1500);
+  });
+  /* 15) Accesibilidad: contraste de textos, tamaño de los puntitos y nombres de enlaces */
+  ready('accesibilidad', function () {
+    var st = document.createElement('style');
+    st.textContent =
+      // Dorado más oscuro solo en textos chicos sobre fondo blanco (contraste suficiente para leer)
+      '.noor-benef-tag,.noor-cf-tag,.noor-iman-tag,.noor-med-tag,.noor-anat-code b,.noor-anat-col strong{color:' +
+      CONFIG.oroTexto +
+      '!important}' +
+      '.noor-benef-title,.noor-benef-title span,.noor-benef-title .noor-trazo{color:' +
+      CONFIG.oroTitulo +
+      '!important}' +
+      '.noor-anat-col small{color:#555!important}' +
+      '.js-compare-price-display,#compare_price_display{color:#6b6b6b!important}' +
+      '.js-saved-money-message .font-small-xs,.js-offer-saved-money{color:#8a5a00!important}' +
+      '#btn-installments{color:#4a4a4a!important}' +
+      // Puntitos del carrusel: se ven igual, pero el área para tocar es de 24 px
+      '.noor-cf-dots button{box-sizing:content-box!important;border:8px solid transparent!important;background-clip:padding-box!important}';
+    document.head.appendChild(st);
+    var zoom = document.querySelectorAll('a.js-open-mobile-zoom');
+    for (var i = 0; i < zoom.length; i++)
+      if (!zoom[i].getAttribute('aria-label'))
+        zoom[i].setAttribute('aria-label', 'Ampliar imagen del producto');
   });
 })();
