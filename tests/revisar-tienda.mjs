@@ -14,7 +14,7 @@ const pagina = await navegador.newPage({
   userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1'
 });
 const erroresJS = [];
-pagina.on('pageerror', e => { if (/noor\.js/.test(e.stack || '')) erroresJS.push(e.message); });
+pagina.on('pageerror', e => { if (/noor(\.min)?\.js/.test(e.stack || '')) erroresJS.push(e.message); });
 
 async function abrir(url) {
   const r = await pagina.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
