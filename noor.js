@@ -47,7 +47,8 @@
     ],
     // Banner principal (imagen del repo o URL completa)
     banner: {
-      imagen: 'banner-gamer.webp',
+      usarFotoDelTema: true, // usa la foto cargada en Tiendanube (Diseño → Carrusel de imágenes): carga más rápido
+      imagen: 'banner-gamer.webp', // respaldo si el tema no tiene foto
       alt: 'Chico usando anteojos con filtro Control Blue frente a la computadora',
       encuadre: '60% 30%', // parte de la foto que se prioriza al recortar (horizontal vertical)
       frases: [
@@ -601,7 +602,7 @@
   ready('banner', function () {
     if (document.querySelector('.noor-hero')) return;
     var B = CONFIG.banner,
-      IMG = img(B.imagen),
+      IMG = '',
       FRASES = B.frases,
       LINK = B.link;
     if (!document.body.classList.contains('template-home')) return;
@@ -634,6 +635,31 @@
       if (sw) sl = subir(sw) || sw.closest('section') || sw;
     }
     if (!sl) return;
+    // Usa la foto que el tema ya cargó (carga apenas abre la página); si no la encuentra, la del repo
+    function fotoDelTema(cont) {
+      var ims = [].slice.call(cont.querySelectorAll('img'));
+      ims.sort(function (a, b) {
+        return (b.offsetParent !== null) - (a.offsetParent !== null);
+      });
+      for (var i = 0; i < ims.length; i++) {
+        var im = ims[i],
+          u = im.currentSrc || im.getAttribute('src') || '';
+        if (!u || /^data:/.test(u)) {
+          var ss = im.getAttribute('data-srcset') || im.getAttribute('srcset') || '';
+          var partes = ss
+            .split(',')
+            .map(function (x) {
+              return x.trim().split(/\s+/)[0];
+            })
+            .filter(Boolean);
+          u = partes[partes.length - 1] || im.getAttribute('data-src') || '';
+        }
+        if (u && !/^data:/.test(u)) return u;
+      }
+      return '';
+    }
+    IMG = (B.usarFotoDelTema && fotoDelTema(sl)) || img(B.imagen);
+    if (NOOR.imagenes.indexOf(IMG) < 0) NOOR.imagenes.push(IMG);
     var h = document.createElement('div');
     h.className = 'noor-hero';
     h.innerHTML =
