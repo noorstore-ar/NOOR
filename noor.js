@@ -1,7 +1,7 @@
 /* =====================================================================
    NOOR STORE · noor.js
    Se carga desde el pie de Tiendanube:
-   <script src="https://cdn.jsdelivr.net/gh/noorstore-ar/NOOR@vXX/noor.js"></script>
+   <script src="https://cdn.jsdelivr.net/gh/noorstore-ar/NOOR@vXX/noor.min.js"></script>
 
    CÓMO EDITAR
    - Textos, fotos, ventas, avisos y números de la tienda: solo en CONFIG (abajo).
@@ -10,6 +10,8 @@
    - Cada sección es independiente: si una falla, las demás siguen funcionando.
    - Toda sección nueva va al final, antes de la última línea "})();".
    - Cada cambio de este archivo = commit + release nuevo (v23, v24…) + cambiar el número en el pie.
+   - El pie carga "noor.min.js": jsDelivr arma solo esa versión comprimida a partir de este archivo.
+     No hay que subir ningún noor.min.js: se edita siempre este noor.js.
 
    SECCIONES
     1  Reseñas y preguntas a lo ancho          8b Tarjeta de oferta (productos)
@@ -96,22 +98,49 @@
   };
 
   /* ---------- Utilidades comunes ---------- */
-  // Corre cada sección cuando la página está lista; si una falla, avisa en la consola y las demás siguen
-  function ready(nombre, f) {
+  // Corre cada sección cuando la página está lista; si una falla, avisa en la consola y las demás siguen.
+  // ready('nombre', fn, true) = se hace enseguida (lo que se ve arriba de todo, para que nada salte).
+  // ready('nombre', fn)       = se hace de a una, en turnos cortos, para que la página responda rápido al tocarla.
+  var COLA = { ya: [], luego: [], armada: false };
+  function correr(s) {
+    try {
+      s[1]();
+    } catch (e) {
+      NOOR.errores.push(s[0]);
+      if (window.console) console.warn('[Noor] Falló "' + s[0] + '":', e);
+    }
+  }
+  function turno(fn) {
+    if (window.scheduler && scheduler.postTask) scheduler.postTask(fn, { priority: 'user-visible' });
+    else setTimeout(fn, 0);
+  }
+  // Después de que el navegador dibuja la página (para medir sin obligarlo a recalcular todo de golpe)
+  function trasDibujar(fn) {
+    if (window.requestAnimationFrame && !document.hidden)
+      requestAnimationFrame(function () {
+        setTimeout(fn, 0);
+      });
+    else setTimeout(fn, 0);
+  }
+  function arrancar() {
+    while (COLA.ya.length) correr(COLA.ya.shift());
+    function siguiente() {
+      if (!COLA.luego.length) return;
+      correr(COLA.luego.shift());
+      turno(siguiente);
+    }
+    turno(siguiente);
+  }
+  function ready(nombre, f, ya) {
     if (typeof nombre === 'function') {
       f = nombre;
       nombre = 'sección';
     }
-    function correr() {
-      try {
-        f();
-      } catch (e) {
-        NOOR.errores.push(nombre);
-        if (window.console) console.warn('[Noor] Falló "' + nombre + '":', e);
-      }
-    }
-    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', correr);
-    else correr();
+    COLA[ya ? 'ya' : 'luego'].push([nombre, f]);
+    if (COLA.armada) return;
+    COLA.armada = true;
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', arrancar);
+    else Promise.resolve().then(arrancar); // apenas termina de leerse este archivo
   }
   // Carpeta de imágenes: la misma versión (tag) que este script, para que código e imágenes viajen juntos
   var SCRIPT = document.currentScript || document.querySelector('script[src*="/NOOR@"]');
@@ -127,6 +156,17 @@
   var NOOR = (window.NOOR = { version: VERSION, errores: [], imagenes: [] });
   var QUIETO = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches); // celular con "reducir movimiento"
   var CHECKOUT = location.pathname.indexOf('checkout') > -1;
+  // Textos de la página que cumplen un patrón (mucho más rápido que revisar cada elemento)
+  function textos(re, raiz) {
+    var w = document.createTreeWalker(raiz || document.body, NodeFilter.SHOW_TEXT, null, false),
+      r = [],
+      n;
+    while ((n = w.nextNode())) {
+      var p = n.parentElement;
+      if (p && !/^(SCRIPT|STYLE|NOSCRIPT|TEMPLATE)$/.test(p.tagName) && re.test(n.nodeValue)) r.push(n);
+    }
+    return r;
+  }
 
   /* 1) Reseñas y preguntas frecuentes a lo ancho */
   ready('reseñas a lo ancho', function () {
@@ -211,21 +251,25 @@
     });
 
   /* 3) Barra de anuncios */
-  ready('barra de anuncios', function () {
-    if (document.querySelector('.noor-topbar')) return;
-    var m = CONFIG.anuncios;
-    var h = '<span>' + m.join('</span><span>') + '</span>';
-    h = h + h + h;
-    var b = document.createElement('div');
-    b.className = 'noor-topbar';
-    b.innerHTML = '<div class="noor-topbar-track">' + h + h + '</div>';
-    var hd = document.querySelector('[data-store="head"]');
-    if (hd) hd.insertBefore(b, hd.firstChild);
-    else document.body.insertBefore(b, document.body.firstChild);
-    setTimeout(function () {
-      window.dispatchEvent(new Event('resize'));
-    }, 300);
-  });
+  ready(
+    'barra de anuncios',
+    function () {
+      if (document.querySelector('.noor-topbar')) return;
+      var m = CONFIG.anuncios;
+      var h = '<span>' + m.join('</span><span>') + '</span>';
+      h = h + h + h;
+      var b = document.createElement('div');
+      b.className = 'noor-topbar';
+      b.innerHTML = '<div class="noor-topbar-track">' + h + h + '</div>';
+      var hd = document.querySelector('[data-store="head"]');
+      if (hd) hd.insertBefore(b, hd.firstChild);
+      else document.body.insertBefore(b, document.body.firstChild);
+      setTimeout(function () {
+        window.dispatchEvent(new Event('resize'));
+      }, 300);
+    },
+    true
+  );
 
   /* 4) Carrusel "Así se usa el Clip 5 en 1" */
   var fotos = CONFIG.carrusel;
@@ -431,22 +475,26 @@
   });
 
   /* 6) Inicio: ocultar sin stock y mostrar máximo 9 productos */
-  ready('inicio máx productos', function () {
-    var h = document.querySelector('[data-store="home-products-featured"]');
-    if (!h) return;
-    var MAX = CONFIG.productosInicio;
-    var it = h.querySelectorAll('.js-item-product'),
-      n = 0;
-    for (var i = 0; i < it.length; i++) {
-      var s = it[i].querySelector('[data-store^="stock-product-"]');
-      var sin = s && /-0$/.test(s.getAttribute('data-store'));
-      if (sin || n >= MAX) {
-        it[i].style.display = 'none';
-      } else {
-        n++;
+  ready(
+    'inicio máx productos',
+    function () {
+      var h = document.querySelector('[data-store="home-products-featured"]');
+      if (!h) return;
+      var MAX = CONFIG.productosInicio;
+      var it = h.querySelectorAll('.js-item-product'),
+        n = 0;
+      for (var i = 0; i < it.length; i++) {
+        var s = it[i].querySelector('[data-store^="stock-product-"]');
+        var sin = s && /-0$/.test(s.getAttribute('data-store'));
+        if (sin || n >= MAX) {
+          it[i].style.display = 'none';
+        } else {
+          n++;
+        }
       }
-    }
-  });
+    },
+    true
+  );
 
   /* 7) Cuadro de medidas del armazón */
   ready('medidas', function () {
@@ -599,290 +647,307 @@
   });
 
   /* 8a) Banner principal con frase animada */
-  ready('banner', function () {
-    if (document.querySelector('.noor-hero')) return;
-    var B = CONFIG.banner,
-      IMG = '',
-      FRASES = B.frases,
-      LINK = B.link;
-    if (!document.body.classList.contains('template-home')) return;
-    function subir(x) {
-      var el = x,
-        top = null;
-      while (el && el !== document.body) {
-        var cn =
-          (typeof el.className === 'string' ? el.className : '') +
-          ' ' +
-          ((el.getAttribute && el.getAttribute('data-store')) || '');
-        if (/slider/i.test(cn)) top = el;
-        el = el.parentNode;
-      }
-      return top;
-    }
-    var sl = null;
-    var hs = document.querySelector('.js-home-main-slider-container');
-    if (hs) sl = subir(hs) || hs;
-    var im = sl
-      ? null
-      : document.querySelector('img.slide-img,img[src*="slide-"],img[data-srcset*="slide-"]');
-    if (im) sl = subir(im) || im.closest('section');
-    if (!sl) {
-      var b = document.querySelector('[data-store*="slider"],.js-home-slider,.home-slider,.section-slider');
-      if (b) sl = subir(b) || b;
-    }
-    if (!sl) {
-      var sw = document.querySelector('.swiper-container,.swiper');
-      if (sw) sl = subir(sw) || sw.closest('section') || sw;
-    }
-    if (!sl) return;
-    // Usa la foto que el tema ya cargó (carga apenas abre la página); si no la encuentra, la del repo
-    function fotoDelTema(cont) {
-      var ims = [].slice.call(cont.querySelectorAll('img'));
-      ims.sort(function (a, b) {
-        return (b.offsetParent !== null) - (a.offsetParent !== null);
-      });
-      for (var i = 0; i < ims.length; i++) {
-        var im = ims[i],
-          u = im.currentSrc || im.getAttribute('src') || '';
-        if (!u || /^data:/.test(u)) {
-          var ss = im.getAttribute('data-srcset') || im.getAttribute('srcset') || '';
-          var partes = ss
-            .split(',')
-            .map(function (x) {
-              return x.trim().split(/\s+/)[0];
-            })
-            .filter(Boolean);
-          u = partes[partes.length - 1] || im.getAttribute('data-src') || '';
+  ready(
+    'banner',
+    function () {
+      if (document.querySelector('.noor-hero')) return;
+      var B = CONFIG.banner,
+        IMG = '',
+        FRASES = B.frases,
+        LINK = B.link;
+      if (!document.body.classList.contains('template-home')) return;
+      function subir(x) {
+        var el = x,
+          top = null;
+        while (el && el !== document.body) {
+          var cn =
+            (typeof el.className === 'string' ? el.className : '') +
+            ' ' +
+            ((el.getAttribute && el.getAttribute('data-store')) || '');
+          if (/slider/i.test(cn)) top = el;
+          el = el.parentNode;
         }
-        if (u && !/^data:/.test(u)) return u;
+        return top;
       }
-      return '';
-    }
-    IMG = (B.usarFotoDelTema && fotoDelTema(sl)) || img(B.imagen);
-    if (NOOR.imagenes.indexOf(IMG) < 0) NOOR.imagenes.push(IMG);
-    var h = document.createElement('div');
-    h.className = 'noor-hero';
-    h.innerHTML =
-      '<div class="noor-hero-bg" role="img" aria-label="' +
-      (B.alt || '').replace(/"/g, '') +
-      '" style="background-image:url(\'' +
-      IMG +
-      "');background-position:" +
-      B.encuadre +
-      '"></div><div class="noor-hero-shade"></div>' +
-      '<div class="noor-hero-txt">' +
-      '<p class="noor-hero-t1">ENFOCATE</p>' +
-      '<p class="noor-hero-t2">EN LO IMPORTANTE.</p>' +
-      '<p class="noor-hero-t3">Nosotros cuidamos <span>tu visión.</span></p>' +
-      '<p class="noor-hero-t4">Anteojos diseñados para <span class="noor-hero-w">' +
-      FRASES[0] +
-      '</span></p>' +
-      '<div class="noor-hero-cta"><span class="noor-hero-promo">' +
-      B.promo +
-      '</span><a class="noor-hero-btn" href="' +
-      LINK +
-      '">' +
-      B.boton +
-      '</a></div>' +
-      '</div>';
-    sl.parentNode.insertBefore(h, sl);
-    sl.style.setProperty('display', 'none', 'important');
-    var w = h.querySelector('.noor-hero-w'),
-      i = 0;
-    setInterval(function () {
-      w.classList.add('sale');
-      setTimeout(function () {
-        i = (i + 1) % FRASES.length;
-        w.textContent = FRASES[i];
-        w.classList.remove('sale');
-        w.classList.add('entra');
-        void w.offsetWidth;
-        w.classList.remove('entra');
-      }, 350);
-    }, 2600);
-  });
+      var sl = null;
+      var hs = document.querySelector('.js-home-main-slider-container');
+      if (hs) sl = subir(hs) || hs;
+      var im = sl
+        ? null
+        : document.querySelector('img.slide-img,img[src*="slide-"],img[data-srcset*="slide-"]');
+      if (im) sl = subir(im) || im.closest('section');
+      if (!sl) {
+        var b = document.querySelector('[data-store*="slider"],.js-home-slider,.home-slider,.section-slider');
+        if (b) sl = subir(b) || b;
+      }
+      if (!sl) {
+        var sw = document.querySelector('.swiper-container,.swiper');
+        if (sw) sl = subir(sw) || sw.closest('section') || sw;
+      }
+      if (!sl) return;
+      // Usa la foto que el tema ya cargó (carga apenas abre la página); si no la encuentra, la del repo
+      function fotoDelTema(cont) {
+        var ims = [].slice.call(cont.querySelectorAll('img'));
+        ims.sort(function (a, b) {
+          return (b.offsetParent !== null) - (a.offsetParent !== null);
+        });
+        for (var i = 0; i < ims.length; i++) {
+          var im = ims[i],
+            u = im.currentSrc || im.getAttribute('src') || '';
+          if (!u || /^data:/.test(u)) {
+            var ss = im.getAttribute('data-srcset') || im.getAttribute('srcset') || '';
+            var partes = ss
+              .split(',')
+              .map(function (x) {
+                return x.trim().split(/\s+/)[0];
+              })
+              .filter(Boolean);
+            u = partes[partes.length - 1] || im.getAttribute('data-src') || '';
+          }
+          if (u && !/^data:/.test(u)) return u;
+        }
+        return '';
+      }
+      IMG = (B.usarFotoDelTema && fotoDelTema(sl)) || img(B.imagen);
+      if (NOOR.imagenes.indexOf(IMG) < 0) NOOR.imagenes.push(IMG);
+      var h = document.createElement('div');
+      h.className = 'noor-hero';
+      h.innerHTML =
+        '<div class="noor-hero-bg" role="img" aria-label="' +
+        (B.alt || '').replace(/"/g, '') +
+        '" style="background-image:url(\'' +
+        IMG +
+        "');background-position:" +
+        B.encuadre +
+        '"></div><div class="noor-hero-shade"></div>' +
+        '<div class="noor-hero-txt">' +
+        '<p class="noor-hero-t1">ENFOCATE</p>' +
+        '<p class="noor-hero-t2">EN LO IMPORTANTE.</p>' +
+        '<p class="noor-hero-t3">Nosotros cuidamos <span>tu visión.</span></p>' +
+        '<p class="noor-hero-t4">Anteojos diseñados para <span class="noor-hero-w">' +
+        FRASES[0] +
+        '</span></p>' +
+        '<div class="noor-hero-cta"><span class="noor-hero-promo">' +
+        B.promo +
+        '</span><a class="noor-hero-btn" href="' +
+        LINK +
+        '">' +
+        B.boton +
+        '</a></div>' +
+        '</div>';
+      sl.parentNode.insertBefore(h, sl);
+      sl.style.setProperty('display', 'none', 'important');
+      var w = h.querySelector('.noor-hero-w'),
+        i = 0;
+      setInterval(function () {
+        w.classList.add('sale');
+        setTimeout(function () {
+          i = (i + 1) % FRASES.length;
+          w.textContent = FRASES[i];
+          w.classList.remove('sale');
+          w.classList.add('entra');
+          void w.offsetWidth;
+          w.classList.remove('entra');
+        }, 350);
+      }, 2600);
+    },
+    true
+  );
 
   /* 8b) Tarjeta de oferta animada sobre el botón de compra
    Se activa con <div class="noor-oferta" style="display:none">Título|Subtítulo|Regalo</div> en la descripción */
-  ready('tarjeta de oferta', function () {
-    var cfg = document.querySelector('.noor-oferta');
-    if (!cfg || document.querySelector('.noor-deal')) return;
-    var btn =
-      document.querySelector('.js-addtocart:not(.js-addtocart-placeholder)') ||
-      document.querySelector('#product_form [type="submit"]');
-    if (!btn) return;
-    var p = cfg.textContent.split('|');
-    var tit = (p[0] || '').trim(),
-      sub = (p[1] || '').trim(),
-      reg = (p[2] || '').trim();
-    // En promos 2x1 el descuento por transferencia no se suma: no lo mostramos
-    var sinTransf = /2x1/i.test(cfg.textContent) || /sin.?transf/i.test(p[3] || '');
-    // En productos 2x1 también ocultamos la leyenda del tema "X% de descuento pagando con Transferencia"
-    function ocultarTransf() {
-      var re = /descuento\s+pagando\s+con\s+transferencia/i,
-        els = document.querySelectorAll('body *');
-      for (var i = 0; i < els.length; i++) {
-        var e = els[i];
-        if (e.closest && e.closest('.noor-deal')) continue;
-        if (!re.test(e.textContent || '')) continue;
-        var hijo = false;
-        for (var j = 0; j < e.children.length; j++) {
-          if (re.test(e.children[j].textContent || '')) {
-            hijo = true;
-            break;
+  ready(
+    'tarjeta de oferta',
+    function () {
+      var cfg = document.querySelector('.noor-oferta');
+      if (!cfg || document.querySelector('.noor-deal')) return;
+      var btn =
+        document.querySelector('.js-addtocart:not(.js-addtocart-placeholder)') ||
+        document.querySelector('#product_form [type="submit"]');
+      if (!btn) return;
+      var p = cfg.textContent.split('|');
+      var tit = (p[0] || '').trim(),
+        sub = (p[1] || '').trim(),
+        reg = (p[2] || '').trim();
+      // En promos 2x1 el descuento por transferencia no se suma: no lo mostramos
+      var sinTransf = /2x1/i.test(cfg.textContent) || /sin.?transf/i.test(p[3] || '');
+      // En productos 2x1 también ocultamos la leyenda del tema "X% de descuento pagando con Transferencia"
+      function ocultarTransf() {
+        var re = /descuento\s+pagando\s+con\s+transferencia/i;
+        // Solo mira los textos que dicen "transferencia" (antes revisaba la página entera: era lo más lento)
+        textos(/transferencia/i).forEach(function (t) {
+          for (var e = t.parentElement; e && e !== document.body; e = e.parentElement) {
+            if (!re.test(e.textContent || '')) continue;
+            if (e.closest('.noor-deal')) return;
+            for (var j = 0; j < e.children.length; j++) if (re.test(e.children[j].textContent || '')) return;
+            e.style.setProperty('display', 'none', 'important');
+            return;
+          }
+        });
+      }
+      if (sinTransf) {
+        ocultarTransf();
+        setTimeout(ocultarTransf, 1200);
+        setTimeout(ocultarTransf, 3000);
+      }
+      cfg.parentNode.removeChild(cfg);
+
+      var css =
+        '@property --noor-giro{syntax:"<angle>";inherits:false;initial-value:0deg}' +
+        '.noor-deal{position:relative;margin:0 0 14px;border:2px solid transparent;border-radius:14px;background:linear-gradient(#fffaf0,#fffaf0) padding-box,conic-gradient(from var(--noor-giro),#e0990f 0deg,#e0990f 260deg,#f3c561 300deg,#fff6dc 320deg,#f3c561 340deg,#e0990f 360deg) border-box;overflow:hidden;opacity:0;font-family:inherit;animation:noorGiro 6s linear infinite}' +
+        '@keyframes noorGiro{to{--noor-giro:360deg}}' +
+        '.noor-deal.noor-in{animation:noorDealIn .7s cubic-bezier(.2,.9,.3,1.2) forwards,noorGiro 6s linear infinite}' +
+        '.noor-deal-main{display:flex;align-items:center;gap:12px;padding:16px}' +
+        '.noor-deal-dot{flex:0 0 22px;height:22px;border-radius:50%;border:2px solid #e0990f;display:flex;align-items:center;justify-content:center;animation:noorDot 2.4s 1.5s infinite}' +
+        '.noor-deal-dot:before{content:"";width:12px;height:12px;border-radius:50%;background:#e0990f}' +
+        '.noor-deal-info{flex:1;min-width:0}' +
+        '.noor-deal-tit{margin:0;font-weight:800;font-size:16px;color:#111;line-height:1.25}' +
+        '.noor-deal-sub{margin:4px 0 0;font-size:13px;color:#555}' +
+        '.noor-deal-prices{text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:2px}' +
+        '.noor-deal-off{background:#111;color:#e0990f;font-size:11px;font-weight:800;padding:3px 8px;border-radius:20px;letter-spacing:.5px}' +
+        '.noor-deal-price{font-size:21px;font-weight:800;color:#111}' +
+        '.noor-deal-old{font-size:13px;color:#999}' +
+        '.noor-deal-extra{background:#f6ead2;border-top:1px solid #ecd9b0;padding:10px 16px}' +
+        '.noor-deal-line{margin:3px 0;font-size:13px;color:#333;display:flex;align-items:center;gap:8px}' +
+        '.noor-deal-line b{color:#111}' +
+        '.noor-deal-ic{flex:0 0 18px;height:18px;border-radius:5px;background:#e0990f;color:#fff;font-size:12px;display:flex;align-items:center;justify-content:center}' +
+        '.noor-deal-free{margin-left:auto;background:#e0990f;color:#fff;font-size:10px;font-weight:800;padding:3px 9px;border-radius:20px}' +
+        '.noor-nudge{animation:noorNudge .9s ease}' +
+        '@keyframes noorDealIn{0%{opacity:0;transform:translateY(18px) scale(.97)}60%{opacity:1;transform:translateY(-4px) scale(1.01)}100%{opacity:1;transform:none}}' +
+        '@keyframes noorDot{0%,100%{box-shadow:0 0 0 0 rgba(224,153,15,.45)}50%{box-shadow:0 0 0 7px rgba(224,153,15,0)}}' +
+        '@keyframes noorNudge{0%,100%{transform:none}20%{transform:translateY(-3px) scale(1.02)}40%{transform:none}60%{transform:translateY(-2px)}}' +
+        '@media (max-width:480px){.noor-deal-tit{font-size:15px}.noor-deal-price{font-size:19px}}' +
+        '@media (prefers-reduced-motion:reduce){.noor-deal,.noor-deal.noor-in{animation:none;opacity:1}.noor-deal-dot,.noor-nudge{animation:none}}';
+      var st = document.createElement('style');
+      st.textContent = css;
+      document.head.appendChild(st);
+
+      var d = document.createElement('div');
+      d.className = 'noor-deal';
+      d.innerHTML =
+        '<div class="noor-deal-main"><span class="noor-deal-dot"></span>' +
+        '<div class="noor-deal-info"><p class="noor-deal-tit"></p><p class="noor-deal-sub"></p></div>' +
+        '<div class="noor-deal-prices"><span class="noor-deal-off"></span><strong class="noor-deal-price"></strong><s class="noor-deal-old"></s></div></div>' +
+        '<div class="noor-deal-extra">' +
+        '<p class="noor-deal-line noor-deal-reg"><span class="noor-deal-ic">✓</span><span class="noor-deal-regtx"></span><span class="noor-deal-free">GRATIS</span></p>' +
+        '<p class="noor-deal-line noor-deal-pay"><span class="noor-deal-ic">$</span><span class="noor-deal-paytx"></span></p>' +
+        '<p class="noor-deal-line"><span class="noor-deal-ic">➜</span><span class="noor-deal-ship"></span></p></div>';
+      var q = function (s) {
+        return d.querySelector(s);
+      };
+      q('.noor-deal-tit').textContent = tit;
+      q('.noor-deal-sub').textContent = sub;
+      if (reg) q('.noor-deal-regtx').textContent = reg;
+      else q('.noor-deal-reg').style.display = 'none';
+
+      var pe = document.querySelector('#price_display, .js-price-display');
+      var ce = document.querySelector('#compare_price_display, .js-compare-price-display');
+      function num(el) {
+        if (!el) return 0;
+        var t = (el.textContent || '').replace(/[^\d,]/g, '').replace(',', '.');
+        return parseFloat(t) || 0;
+      }
+      function fmt(n) {
+        // $179.980 (a mano: el formateador del navegador tarda en arrancar y frenaba la página)
+        return '$' + String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+      }
+      function upd() {
+        var pr = num(pe),
+          old = num(ce);
+        if (!pr) {
+          d.style.display = 'none';
+          return;
+        }
+        d.style.display = '';
+        q('.noor-deal-price').textContent = fmt(pr);
+        if (old > pr) {
+          q('.noor-deal-old').textContent = fmt(old);
+          q('.noor-deal-off').textContent = Math.round((1 - pr / old) * 100) + '% OFF';
+          q('.noor-deal-old').style.display = '';
+          q('.noor-deal-off').style.display = '';
+        } else {
+          q('.noor-deal-old').style.display = 'none';
+          q('.noor-deal-off').style.display = 'none';
+        }
+        q('.noor-deal-paytx').innerHTML =
+          CONFIG.cuotas +
+          ' cuotas sin interés de <b>' +
+          fmt(pr / CONFIG.cuotas) +
+          '</b>' +
+          (sinTransf
+            ? ''
+            : ' · <b>' + fmt(pr * (1 - CONFIG.descuentoTransferencia)) + '</b> por transferencia');
+      }
+      function habil(n) {
+        var x = new Date(),
+          c = 0;
+        while (c < n) {
+          x.setDate(x.getDate() + 1);
+          var w = x.getDay();
+          if (w > 0 && w < 6) c++;
+        }
+        return x;
+      }
+      // "lun, 12 oct" (igual que el formato argentino del navegador, pero sin hacerlo arrancar)
+      function dia(x) {
+        return (
+          ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'][x.getDay()] +
+          ', ' +
+          x.getDate() +
+          ' ' +
+          ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sept', 'oct', 'nov', 'dic'][x.getMonth()]
+        );
+      }
+      q('.noor-deal-ship').innerHTML =
+        'Envío gratis · llega aprox. entre el <b>' +
+        dia(habil(CONFIG.envioDias[0])) +
+        '</b> y el <b>' +
+        dia(habil(CONFIG.envioDias[1])) +
+        '</b>';
+      upd();
+      if (pe && window.MutationObserver)
+        new MutationObserver(upd).observe(pe, { childList: true, subtree: true, characterData: true });
+
+      var t = btn.closest('.form-row') || btn;
+      t.parentNode.insertBefore(d, t);
+      /* En compu, la columna de compra fija (sticky) del tema se montaba sobre las reseñas y preguntas: la dejamos quieta */
+      // (se revisa después de que el navegador dibuja, cuando ya calculó los estilos: así no frena la carga)
+      trasDibujar(function () {
+        for (var an = d.parentNode; an && an !== document.body; an = an.parentNode) {
+          if (getComputedStyle(an).position === 'sticky') {
+            an.style.setProperty('position', 'relative', 'important');
+            an.style.setProperty('top', 'auto', 'important');
           }
         }
-        if (!hijo) e.style.setProperty('display', 'none', 'important');
-      }
-    }
-    if (sinTransf) {
-      ocultarTransf();
-      setTimeout(ocultarTransf, 1200);
-      setTimeout(ocultarTransf, 3000);
-    }
-    cfg.parentNode.removeChild(cfg);
+      });
 
-    var css =
-      '@property --noor-giro{syntax:"<angle>";inherits:false;initial-value:0deg}' +
-      '.noor-deal{position:relative;margin:0 0 14px;border:2px solid transparent;border-radius:14px;background:linear-gradient(#fffaf0,#fffaf0) padding-box,conic-gradient(from var(--noor-giro),#e0990f 0deg,#e0990f 260deg,#f3c561 300deg,#fff6dc 320deg,#f3c561 340deg,#e0990f 360deg) border-box;overflow:hidden;opacity:0;font-family:inherit;animation:noorGiro 6s linear infinite}' +
-      '@keyframes noorGiro{to{--noor-giro:360deg}}' +
-      '.noor-deal.noor-in{animation:noorDealIn .7s cubic-bezier(.2,.9,.3,1.2) forwards,noorGiro 6s linear infinite}' +
-      '.noor-deal-main{display:flex;align-items:center;gap:12px;padding:16px}' +
-      '.noor-deal-dot{flex:0 0 22px;height:22px;border-radius:50%;border:2px solid #e0990f;display:flex;align-items:center;justify-content:center;animation:noorDot 2.4s 1.5s infinite}' +
-      '.noor-deal-dot:before{content:"";width:12px;height:12px;border-radius:50%;background:#e0990f}' +
-      '.noor-deal-info{flex:1;min-width:0}' +
-      '.noor-deal-tit{margin:0;font-weight:800;font-size:16px;color:#111;line-height:1.25}' +
-      '.noor-deal-sub{margin:4px 0 0;font-size:13px;color:#555}' +
-      '.noor-deal-prices{text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:2px}' +
-      '.noor-deal-off{background:#111;color:#e0990f;font-size:11px;font-weight:800;padding:3px 8px;border-radius:20px;letter-spacing:.5px}' +
-      '.noor-deal-price{font-size:21px;font-weight:800;color:#111}' +
-      '.noor-deal-old{font-size:13px;color:#999}' +
-      '.noor-deal-extra{background:#f6ead2;border-top:1px solid #ecd9b0;padding:10px 16px}' +
-      '.noor-deal-line{margin:3px 0;font-size:13px;color:#333;display:flex;align-items:center;gap:8px}' +
-      '.noor-deal-line b{color:#111}' +
-      '.noor-deal-ic{flex:0 0 18px;height:18px;border-radius:5px;background:#e0990f;color:#fff;font-size:12px;display:flex;align-items:center;justify-content:center}' +
-      '.noor-deal-free{margin-left:auto;background:#e0990f;color:#fff;font-size:10px;font-weight:800;padding:3px 9px;border-radius:20px}' +
-      '.noor-nudge{animation:noorNudge .9s ease}' +
-      '@keyframes noorDealIn{0%{opacity:0;transform:translateY(18px) scale(.97)}60%{opacity:1;transform:translateY(-4px) scale(1.01)}100%{opacity:1;transform:none}}' +
-      '@keyframes noorDot{0%,100%{box-shadow:0 0 0 0 rgba(224,153,15,.45)}50%{box-shadow:0 0 0 7px rgba(224,153,15,0)}}' +
-      '@keyframes noorNudge{0%,100%{transform:none}20%{transform:translateY(-3px) scale(1.02)}40%{transform:none}60%{transform:translateY(-2px)}}' +
-      '@media (max-width:480px){.noor-deal-tit{font-size:15px}.noor-deal-price{font-size:19px}}' +
-      '@media (prefers-reduced-motion:reduce){.noor-deal,.noor-deal.noor-in{animation:none;opacity:1}.noor-deal-dot,.noor-nudge{animation:none}}';
-    var st = document.createElement('style');
-    st.textContent = css;
-    document.head.appendChild(st);
+      if (window.IntersectionObserver) {
+        var io = new IntersectionObserver(
+          function (e) {
+            if (e[0].isIntersecting) {
+              d.classList.add('noor-in');
+              io.disconnect();
+            }
+          },
+          { threshold: 0.3 }
+        );
+        io.observe(d);
+      } else d.classList.add('noor-in');
 
-    var d = document.createElement('div');
-    d.className = 'noor-deal';
-    d.innerHTML =
-      '<div class="noor-deal-main"><span class="noor-deal-dot"></span>' +
-      '<div class="noor-deal-info"><p class="noor-deal-tit"></p><p class="noor-deal-sub"></p></div>' +
-      '<div class="noor-deal-prices"><span class="noor-deal-off"></span><strong class="noor-deal-price"></strong><s class="noor-deal-old"></s></div></div>' +
-      '<div class="noor-deal-extra">' +
-      '<p class="noor-deal-line noor-deal-reg"><span class="noor-deal-ic">✓</span><span class="noor-deal-regtx"></span><span class="noor-deal-free">GRATIS</span></p>' +
-      '<p class="noor-deal-line noor-deal-pay"><span class="noor-deal-ic">$</span><span class="noor-deal-paytx"></span></p>' +
-      '<p class="noor-deal-line"><span class="noor-deal-ic">➜</span><span class="noor-deal-ship"></span></p></div>';
-    var q = function (s) {
-      return d.querySelector(s);
-    };
-    q('.noor-deal-tit').textContent = tit;
-    q('.noor-deal-sub').textContent = sub;
-    if (reg) q('.noor-deal-regtx').textContent = reg;
-    else q('.noor-deal-reg').style.display = 'none';
-
-    var pe = document.querySelector('#price_display, .js-price-display');
-    var ce = document.querySelector('#compare_price_display, .js-compare-price-display');
-    function num(el) {
-      if (!el) return 0;
-      var t = (el.textContent || '').replace(/[^\d,]/g, '').replace(',', '.');
-      return parseFloat(t) || 0;
-    }
-    function fmt(n) {
-      return '$' + Math.round(n).toLocaleString('es-AR');
-    }
-    function upd() {
-      var pr = num(pe),
-        old = num(ce);
-      if (!pr) {
-        d.style.display = 'none';
-        return;
-      }
-      d.style.display = '';
-      q('.noor-deal-price').textContent = fmt(pr);
-      if (old > pr) {
-        q('.noor-deal-old').textContent = fmt(old);
-        q('.noor-deal-off').textContent = Math.round((1 - pr / old) * 100) + '% OFF';
-        q('.noor-deal-old').style.display = '';
-        q('.noor-deal-off').style.display = '';
-      } else {
-        q('.noor-deal-old').style.display = 'none';
-        q('.noor-deal-off').style.display = 'none';
-      }
-      q('.noor-deal-paytx').innerHTML =
-        CONFIG.cuotas +
-        ' cuotas sin interés de <b>' +
-        fmt(pr / CONFIG.cuotas) +
-        '</b>' +
-        (sinTransf
-          ? ''
-          : ' · <b>' + fmt(pr * (1 - CONFIG.descuentoTransferencia)) + '</b> por transferencia');
-    }
-    function habil(n) {
-      var x = new Date(),
-        c = 0;
-      while (c < n) {
-        x.setDate(x.getDate() + 1);
-        var w = x.getDay();
-        if (w > 0 && w < 6) c++;
-      }
-      return x;
-    }
-    var o = { weekday: 'short', day: 'numeric', month: 'short' };
-    q('.noor-deal-ship').innerHTML =
-      'Envío gratis · llega aprox. entre el <b>' +
-      habil(CONFIG.envioDias[0]).toLocaleDateString('es-AR', o) +
-      '</b> y el <b>' +
-      habil(CONFIG.envioDias[1]).toLocaleDateString('es-AR', o) +
-      '</b>';
-    upd();
-    if (pe && window.MutationObserver)
-      new MutationObserver(upd).observe(pe, { childList: true, subtree: true, characterData: true });
-
-    var t = btn.closest('.form-row') || btn;
-    t.parentNode.insertBefore(d, t);
-    /* En compu, la columna de compra fija (sticky) del tema se montaba sobre las reseñas y preguntas: la dejamos quieta */
-    for (var an = d.parentNode; an && an !== document.body; an = an.parentNode) {
-      if (getComputedStyle(an).position === 'sticky') {
-        an.style.setProperty('position', 'relative', 'important');
-        an.style.setProperty('top', 'auto', 'important');
-      }
-    }
-
-    if (window.IntersectionObserver) {
-      var io = new IntersectionObserver(
-        function (e) {
-          if (e[0].isIntersecting) {
-            d.classList.add('noor-in');
-            io.disconnect();
-          }
-        },
-        { threshold: 0.3 }
-      );
-      io.observe(d);
-    } else d.classList.add('noor-in');
-
-    var usado = false;
-    btn.addEventListener('click', function () {
-      usado = true;
-    });
-    setInterval(function () {
-      if (usado || document.hidden) return;
-      btn.classList.add('noor-nudge');
-      setTimeout(function () {
-        btn.classList.remove('noor-nudge');
-      }, 900);
-    }, 7000);
-  });
+      var usado = false;
+      btn.addEventListener('click', function () {
+        usado = true;
+      });
+      setInterval(function () {
+        if (usado || document.hidden) return;
+        btn.classList.add('noor-nudge');
+        setTimeout(function () {
+          btn.classList.remove('noor-nudge');
+        }, 900);
+      }, 7000);
+    },
+    true
+  );
 
   /* 9) Antes y después deslizable (con pestañas si hay más de uno)
    Cada comparación se activa con una línea en la descripción:
@@ -913,7 +978,9 @@
     if (!items.length) return;
     var css =
       '.noor-ad-box{max-width:900px;margin:40px auto;padding:0 16px;text-align:center}' +
-      '.noor-ad-tag{margin:0;color:#e0990f;font-size:12px;font-weight:700;letter-spacing:2px}' +
+      '.noor-ad-tag{margin:0;color:' +
+      CONFIG.oroTexto +
+      ';font-size:12px;font-weight:700;letter-spacing:2px}' +
       '.noor-ad-title{margin:6px 0 4px;font-size:26px;font-weight:800;color:#111;line-height:1.2}' +
       '.noor-ad-sub{margin:0 0 16px;font-size:14px;color:#666}' +
       '.noor-ad-tabs{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:0 0 14px}' +
@@ -929,7 +996,7 @@
       '.noor-ad-knob{position:absolute;top:50%;left:50%;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;background:#111;border:3px solid #e0990f;color:#e0990f;font-size:18px;font-weight:800;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(0,0,0,.35)}' +
       '.noor-ad-view input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:ew-resize;-webkit-appearance:none;appearance:none}' +
       '.noor-ad-view:focus-within .noor-ad-knob{outline:3px solid #fff;outline-offset:2px}' +
-      '.noor-ad-note{margin:10px 0 0;font-size:12px;color:#888}' +
+      '.noor-ad-note{margin:10px 0 0;font-size:12px;color:#666}' +
       '@media (max-width:480px){.noor-ad-title{font-size:21px}.noor-ad-tabs button{font-size:12px;padding:8px 11px}.noor-ad-knob{width:40px;height:40px;margin:-20px 0 0 -20px;font-size:16px}.noor-ad-lab{font-size:11px;top:9px}}';
     var st = document.createElement('style');
     st.textContent = css;
@@ -1369,9 +1436,31 @@
       fija.setAttribute('aria-hidden', 'true');
       var img = document.querySelector('meta[property="og:image"]'),
         h1 = document.querySelector('h1');
+      // Foto chiquita: pide a Tiendanube la versión de 100 px (o 240 px en pantallas nítidas) en vez de la grande
+      var foto = img ? img.content.replace(/"/g, '') : '',
+        tam = /-\d+-\d+(\.(?:webp|jpe?g|png|gif))(\?.*)?$/i,
+        fotoHtml = '';
+      if (foto && tam.test(foto))
+        fotoHtml =
+          '<img alt="" width="46" height="46" decoding="async" sizes="46px" src="' +
+          foto.replace(tam, '-100-0$1') +
+          '" srcset="' +
+          foto.replace(tam, '-100-0$1') +
+          ' 100w, ' +
+          foto.replace(tam, '-240-0$1') +
+          ' 240w">';
+      else if (foto) fotoHtml = '<img alt="" width="46" height="46" decoding="async" src="' + foto + '">';
       fija.innerHTML =
-        (img ? '<img alt="" src="' + img.content.replace(/"/g, '') + '">' : '') +
+        fotoHtml +
         '<div class="noor-fija-info"><strong></strong><span></span></div><button type="button" tabindex="-1">Comprar</button>';
+      var fi = fija.querySelector('img');
+      if (fi)
+        fi.onerror = function () {
+          // si Tiendanube no tuviera la versión chica, usa la original
+          fi.onerror = null;
+          fi.removeAttribute('srcset');
+          fi.src = foto;
+        };
       fija.querySelector('strong').textContent = h1 ? h1.textContent.trim() : '';
       function precio() {
         fija.querySelector('.noor-fija-info span').textContent = pe ? pe.textContent.trim() : '';
@@ -1679,10 +1768,14 @@
         }
       }
       /* Etiquetas "0% OFF" y precios tachados en $0,00 */
-      var todo = document.querySelectorAll('body *');
-      for (var k = 0; k < todo.length; k++) {
-        var x = todo[k];
-        if (x.children.length) continue;
+      // Solo mira los textos con "%" o "$" (antes revisaba cada elemento de la página)
+      var hojas = [];
+      textos(/[%$]/).forEach(function (t) {
+        var p = t.parentElement;
+        if (!p.children.length && hojas.indexOf(p) < 0) hojas.push(p);
+      });
+      for (var k = 0; k < hojas.length; k++) {
+        var x = hojas[k];
         var tx = (x.textContent || '').replace(/\s+/g, ' ').trim();
         if (/^-?0\s?%\s?OFF$/i.test(tx)) {
           x.style.setProperty('display', 'none', 'important');
@@ -1699,11 +1792,17 @@
         }
       }
       /* Aviso de cookies del tema: queda solo el de Noor, que enlaza a la política de privacidad */
-      for (var c = 0; c < todo.length; c++) {
-        var y = todo[c];
-        if (y.children.length > 3) continue;
-        var yt = y.textContent || '';
-        if (yt.length > 300 || !/aceptás el uso de cookies/i.test(yt)) continue;
+      var avisos = textos(/cookies/i);
+      for (var c = 0; c < avisos.length; c++) {
+        var y = avisos[c].parentElement;
+        // sube hasta el elemento que tiene la frase completa (máximo 300 letras, como antes)
+        while (y && y !== document.body && !/aceptás el uso de cookies/i.test(y.textContent || ''))
+          y = y.parentElement;
+        while (y && y !== document.body && y.children.length > 3 && (y.textContent || '').length <= 300)
+          y = y.parentElement;
+        if (!y || y === document.body || y.children.length > 3 || (y.textContent || '').length > 300)
+          continue;
+        if (y.closest('.noor-cookies')) continue;
         for (var u = y; u && u !== document.body; u = u.parentElement) {
           var cs = getComputedStyle(u),
             cn = (u.className && u.className.toString()) || '';
@@ -1718,26 +1817,33 @@
     setTimeout(limpiar, 1500);
   });
   /* 15) Accesibilidad: contraste de textos, tamaño de los puntitos y nombres de enlaces */
-  ready('accesibilidad', function () {
-    var st = document.createElement('style');
-    st.textContent =
-      // Dorado más oscuro solo en textos chicos sobre fondo blanco (contraste suficiente para leer)
-      '.noor-benef-tag,.noor-cf-tag,.noor-iman-tag,.noor-med-tag,.noor-anat-code b,.noor-anat-col strong{color:' +
-      CONFIG.oroTexto +
-      '!important}' +
-      '.noor-benef-title,.noor-benef-title span,.noor-benef-title .noor-trazo{color:' +
-      CONFIG.oroTitulo +
-      '!important}' +
-      '.noor-anat-col small{color:#555!important}' +
-      '.js-compare-price-display,#compare_price_display{color:#6b6b6b!important}' +
-      '.js-saved-money-message .font-small-xs,.js-offer-saved-money{color:#8a5a00!important}' +
-      '#btn-installments{color:#4a4a4a!important}' +
-      // Puntitos del carrusel: se ven igual, pero el área para tocar es de 24 px
-      '.noor-cf-dots button{box-sizing:content-box!important;border:8px solid transparent!important;background-clip:padding-box!important}';
-    document.head.appendChild(st);
-    var zoom = document.querySelectorAll('a.js-open-mobile-zoom');
-    for (var i = 0; i < zoom.length; i++)
-      if (!zoom[i].getAttribute('aria-label'))
-        zoom[i].setAttribute('aria-label', 'Ampliar imagen del producto');
-  });
+  ready(
+    'accesibilidad',
+    function () {
+      var st = document.createElement('style');
+      st.textContent =
+        // Dorado más oscuro solo en textos chicos sobre fondo blanco (contraste suficiente para leer)
+        '.noor-benef-tag,.noor-cf-tag,.noor-iman-tag,.noor-med-tag,.noor-ad-tag,.noor-faq-tag,.noor-anat-code b,.noor-anat-col strong{color:' +
+        CONFIG.oroTexto +
+        '!important}' +
+        '.noor-benef-title,.noor-benef-title span,.noor-benef-title .noor-trazo{color:' +
+        CONFIG.oroTitulo +
+        '!important}' +
+        '.noor-anat-col small,.noor-med-nota,.noor-med-nota b{color:#555!important}' +
+        '.noor-ad-note{color:#666!important}' +
+        // Precio tachado: el tema lo aclara con transparencia; lo dejamos gris oscuro y sin transparencia
+        '.price-compare,.item-price-compare,.js-compare-price-display,#compare_price_display{opacity:1!important}' +
+        'html body span.js-compare-price-display,html body #compare_price_display{color:#6b6b6b!important}' +
+        '.js-saved-money-message .font-small-xs,.js-offer-saved-money{color:#8a5a00!important}' +
+        '#btn-installments{color:#4a4a4a!important}' +
+        // Puntitos del carrusel: se ven igual, pero el área para tocar es de 24 px
+        '.noor-cf-dots button{box-sizing:content-box!important;border:8px solid transparent!important;background-clip:padding-box!important}';
+      document.head.appendChild(st);
+      var zoom = document.querySelectorAll('a.js-open-mobile-zoom');
+      for (var i = 0; i < zoom.length; i++)
+        if (!zoom[i].getAttribute('aria-label'))
+          zoom[i].setAttribute('aria-label', 'Ampliar imagen del producto');
+    },
+    true
+  );
 })();
