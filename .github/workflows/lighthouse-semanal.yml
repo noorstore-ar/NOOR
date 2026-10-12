@@ -1,0 +1,39 @@
+# Informe semanal de Lighthouse (velocidad, accesibilidad, buenas prácticas y SEO) del inicio y del Clip 5 en 1.
+# Corre los lunes a las 9 (hora argentina). El resumen aparece en la ejecución, y los informes completos
+# quedan para descargar en "Artifacts". Si SEO, accesibilidad o buenas prácticas bajan del mínimo, llega un mail.
+name: Informe semanal de Lighthouse
+
+on:
+  schedule:
+    - cron: '0 12 * * 1'        # lunes 12:00 UTC = 9:00 en Argentina
+  workflow_dispatch:            # botón "Run workflow" para correrlo a mano
+
+permissions:
+  contents: read
+
+jobs:
+  lighthouse:
+    name: Medir la tienda con Lighthouse
+    runs-on: ubuntu-24.04   # versión fija: no cambia sola
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with: { node-version: 22 }
+      - name: Medir inicio y producto (como celular)
+        run: |
+          mkdir -p lh
+          for p in "home|https://noorstorear.mitiendanube.com/" "producto|https://noorstorear.mitiendanube.com/productos/clip-5-en-1/"; do
+            n="${p%%|*}"; u="${p#*|}"
+            npx --yes lighthouse@12.2.1 "$u" --output=json --output=html --output-path="lh/$n" \
+              --locale=es --only-categories=performance,accessibility,best-practices,seo \
+              --chrome-flags="--headless=new --no-sandbox" --quiet || echo "No se pudo medir $u"
+          done
+      - name: Resumen en castellano
+        run: node tests/lighthouse-resumen.mjs
+      - name: Guardar informes completos
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: informes-lighthouse
+          path: lh/*.report.html
+          retention-days: 30
