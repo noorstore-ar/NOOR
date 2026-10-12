@@ -156,6 +156,7 @@
   var NOOR = (window.NOOR = { version: VERSION, errores: [], imagenes: [] });
   var QUIETO = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches); // celular con "reducir movimiento"
   var CHECKOUT = location.pathname.indexOf('checkout') > -1;
+  var INICIO = !!(document.body && document.body.classList.contains('template-home'));
   // Textos de la página que cumplen un patrón (mucho más rápido que revisar cada elemento)
   function textos(re, raiz) {
     var w = document.createTreeWalker(raiz || document.body, NodeFilter.SHOW_TEXT, null, false),
@@ -273,206 +274,214 @@
 
   /* 4) Carrusel "Así se usa el Clip 5 en 1" */
   var fotos = CONFIG.carrusel;
-  ready('carrusel', function () {
-    var dest = document.querySelector('[data-store="home-products-featured"]');
-    if (!dest || document.querySelector('.noor-cf-wrap')) return;
-    var w = document.createElement('div');
-    w.className = 'noor-cf-wrap';
-    var c = '',
-      d = '';
-    for (var i = 0; i < fotos.length; i++) {
-      c +=
-        '<div class="noor-cf-card" role="img" aria-label="' +
-        (fotos[i][1] + ' – ' + fotos[i][2]).replace(/"/g, '') +
-        '" data-i="' +
-        i +
-        '" data-bg="' +
-        img(fotos[i][0]) +
-        '"><div class="noor-cf-caption">' +
-        fotos[i][1] +
-        '<span>' +
-        fotos[i][2] +
-        '</span></div></div>';
-      d +=
-        '<button data-i="' +
-        i +
-        '" aria-label="' +
-        ('Ver foto ' + (i + 1) + ': ' + fotos[i][1]).replace(/"/g, '') +
-        '"></button>';
-    }
-    w.innerHTML =
-      '<p class="noor-cf-tag">UN LOOK PARA CADA MOMENTO</p><p class="noor-cf-title">Así se usa el Clip 5 en 1</p><p class="noor-cf-sub">Un armazón, cinco clips y la pantalla cubierta.</p><div class="noor-cf">' +
-      c +
-      '</div><div class="noor-cf-dots">' +
-      d +
-      '</div>';
-    dest.parentNode.insertBefore(w, dest);
-    // Las fotos (pesadas) se descargan recién cuando el carrusel está por verse
-    function fondos() {
-      [].forEach.call(w.querySelectorAll('.noor-cf-card[data-bg]'), function (el) {
-        el.style.backgroundImage = "url('" + el.getAttribute('data-bg') + "')";
-        el.removeAttribute('data-bg');
-      });
-    }
-    if (window.IntersectionObserver) {
-      var ioF = new IntersectionObserver(
-        function (e) {
-          if (e[0].isIntersecting) {
-            ioF.disconnect();
-            fondos();
-          }
-        },
-        { rootMargin: '600px 0px' }
-      );
-      ioF.observe(w);
-    } else fondos();
-    var it = w.querySelectorAll('.noor-cf-card'),
-      pt = w.querySelectorAll('.noor-cf-dots button'),
-      n = it.length,
-      a = Math.floor(n / 2),
-      tm;
-    function pin() {
-      var p = innerWidth < 768 ? 110 : 190;
-      for (var i = 0; i < n; i++) {
-        var k = i - a;
-        if (k > n / 2) k -= n;
-        if (k < -n / 2) k += n;
-        var s = Math.abs(k);
-        it[i].style.transform =
-          'translateX(' +
-          k * p +
-          'px) rotateY(' +
-          (k ? (k < 0 ? 35 : -35) : 0) +
-          'deg) scale(' +
-          (1 - s * 0.12) +
-          ')';
-        it[i].style.zIndex = 10 - s;
-        it[i].style.opacity = s > 2 ? 0 : 1;
-        it[i].style.filter = k ? 'brightness(.75)' : 'none';
-        pt[i].className = i === a ? 'activo' : '';
+  ready(
+    'carrusel',
+    function () {
+      var dest = document.querySelector('[data-store="home-products-featured"]');
+      if (!dest || document.querySelector('.noor-cf-wrap')) return;
+      var w = document.createElement('div');
+      w.className = 'noor-cf-wrap';
+      var c = '',
+        d = '';
+      for (var i = 0; i < fotos.length; i++) {
+        c +=
+          '<div class="noor-cf-card" role="img" aria-label="' +
+          (fotos[i][1] + ' – ' + fotos[i][2]).replace(/"/g, '') +
+          '" data-i="' +
+          i +
+          '" data-bg="' +
+          img(fotos[i][0]) +
+          '"><div class="noor-cf-caption">' +
+          fotos[i][1] +
+          '<span>' +
+          fotos[i][2] +
+          '</span></div></div>';
+        d +=
+          '<button data-i="' +
+          i +
+          '" aria-label="' +
+          ('Ver foto ' + (i + 1) + ': ' + fotos[i][1]).replace(/"/g, '') +
+          '"></button>';
       }
-    }
-    function ir(i) {
-      a = (i + n) % n;
+      w.innerHTML =
+        '<p class="noor-cf-tag">UN LOOK PARA CADA MOMENTO</p><p class="noor-cf-title">Así se usa el Clip 5 en 1</p><p class="noor-cf-sub">Un armazón, cinco clips y la pantalla cubierta.</p><div class="noor-cf">' +
+        c +
+        '</div><div class="noor-cf-dots">' +
+        d +
+        '</div>';
+      dest.parentNode.insertBefore(w, dest);
+      // Las fotos (pesadas) se descargan recién cuando el carrusel está por verse
+      function fondos() {
+        [].forEach.call(w.querySelectorAll('.noor-cf-card[data-bg]'), function (el) {
+          el.style.backgroundImage = "url('" + el.getAttribute('data-bg') + "')";
+          el.removeAttribute('data-bg');
+        });
+      }
+      if (window.IntersectionObserver) {
+        var ioF = new IntersectionObserver(
+          function (e) {
+            if (e[0].isIntersecting) {
+              ioF.disconnect();
+              fondos();
+            }
+          },
+          { rootMargin: '600px 0px' }
+        );
+        ioF.observe(w);
+      } else fondos();
+      var it = w.querySelectorAll('.noor-cf-card'),
+        pt = w.querySelectorAll('.noor-cf-dots button'),
+        n = it.length,
+        a = Math.floor(n / 2),
+        tm;
+      function pin() {
+        var p = innerWidth < 768 ? 110 : 190;
+        for (var i = 0; i < n; i++) {
+          var k = i - a;
+          if (k > n / 2) k -= n;
+          if (k < -n / 2) k += n;
+          var s = Math.abs(k);
+          it[i].style.transform =
+            'translateX(' +
+            k * p +
+            'px) rotateY(' +
+            (k ? (k < 0 ? 35 : -35) : 0) +
+            'deg) scale(' +
+            (1 - s * 0.12) +
+            ')';
+          it[i].style.zIndex = 10 - s;
+          it[i].style.opacity = s > 2 ? 0 : 1;
+          it[i].style.filter = k ? 'brightness(.75)' : 'none';
+          pt[i].className = i === a ? 'activo' : '';
+        }
+      }
+      function ir(i) {
+        a = (i + n) % n;
+        pin();
+        re();
+      }
+      function re() {
+        clearInterval(tm);
+        tm = setInterval(function () {
+          ir(a + 1);
+        }, CONFIG.carruselSegundos * 1000);
+      }
+      for (var j = 0; j < n; j++) {
+        it[j].onclick = pt[j].onclick = function () {
+          ir(+this.getAttribute('data-i'));
+        };
+      }
+      var z = w.querySelector('.noor-cf'),
+        x = null;
+      z.addEventListener(
+        'touchstart',
+        function (e) {
+          x = e.touches[0].clientX;
+        },
+        { passive: true }
+      );
+      z.addEventListener('touchend', function (e) {
+        if (x === null) return;
+        var dx = e.changedTouches[0].clientX - x;
+        if (Math.abs(dx) > 40) ir(a + (dx < 0 ? 1 : -1));
+        x = null;
+      });
+      z.onmouseenter = function () {
+        clearInterval(tm);
+      };
+      z.onmouseleave = re;
+      addEventListener('resize', pin);
       pin();
       re();
-    }
-    function re() {
-      clearInterval(tm);
-      tm = setInterval(function () {
-        ir(a + 1);
-      }, CONFIG.carruselSegundos * 1000);
-    }
-    for (var j = 0; j < n; j++) {
-      it[j].onclick = pt[j].onclick = function () {
-        ir(+this.getAttribute('data-i'));
-      };
-    }
-    var z = w.querySelector('.noor-cf'),
-      x = null;
-    z.addEventListener(
-      'touchstart',
-      function (e) {
-        x = e.touches[0].clientX;
-      },
-      { passive: true }
-    );
-    z.addEventListener('touchend', function (e) {
-      if (x === null) return;
-      var dx = e.changedTouches[0].clientX - x;
-      if (Math.abs(dx) > 40) ir(a + (dx < 0 ? 1 : -1));
-      x = null;
-    });
-    z.onmouseenter = function () {
-      clearInterval(tm);
-    };
-    z.onmouseleave = re;
-    addEventListener('resize', pin);
-    pin();
-    re();
-  });
+    },
+    true
+  );
 
   /* 5) "Cuidamos tu visión" */
-  ready('cuidamos tu visión', function () {
-    setTimeout(function () {
-      var pr = document.querySelector('[data-store="home-products-featured"]');
-      if (!pr || document.querySelector('.noor-benef')) return;
-      function ic(p) {
-        return '<svg viewBox="0 0 24 24">' + p + '</svg>';
-      }
-      function it(p, t, s) {
-        return (
-          '<div class="noor-benef-item">' +
-          ic(p) +
-          '<div><strong>' +
-          t +
-          '</strong><small>' +
-          s +
-          '</small></div></div>'
-        );
-      }
-      function tr(p, t, s) {
-        return (
-          '<div class="noor-trust-item">' +
-          ic(p) +
-          '<p class="noor-trust-title">' +
-          t +
-          '</p><p class="noor-trust-sub">' +
-          s +
-          '</p></div>'
-        );
-      }
-      var b = document.createElement('div');
-      b.className = 'noor-benef';
-      b.innerHTML =
-        '<div class="noor-benef-glow"></div><p class="noor-benef-tag">LO QUE NOS DIFERENCIA</p><p class="noor-benef-title">Cuidamos <span>tu visión</span></p><p class="noor-benef-sub">DE PRINCIPIO A FIN</p><div class="noor-benef-grid">' +
-        it(
-          '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
-          'Polarizados UV400',
-          'Bloquean el 100% de los rayos UVA y UVB'
-        ) +
-        it(
-          '<path d="M6 3v8a6 6 0 0 0 12 0V3h-4v8a2 2 0 0 1-4 0V3z"/><path d="M6 7h4M14 7h4"/>',
-          'Clips magnéticos',
-          'Cambiás de look en un segundo'
-        ) +
-        it(
-          '<rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/>',
-          'Control Blue',
-          'Filtro de luz azul para pantallas'
-        ) +
-        '</div><div class="noor-trust">' +
-        tr(
-          '<path class="oro" d="M1 8h4M1.5 11h3.5M2.5 14h2.5"/><path d="M7 6h9v10H7zM16 9h3l3 3v4h-6"/><circle cx="10" cy="17" r="2"/><circle cx="19" cy="17" r="2"/>',
-          'ENVÍO <span>GRATIS</span>',
-          'A TODO EL PAÍS'
-        ) +
-        tr(
-          '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/><path class="oro" d="M6 15h2M10 15h2"/>',
-          '<span>3</span> CUOTAS',
-          'SIN INTERÉS'
-        ) +
-        tr(
-          '<path d="M12 2l8 3v6c0 5-3.5 9-8 11-4.5-2-8-6-8-11V5z"/><path class="oro" d="M8.5 12l2.5 2.5 4.5-5"/>',
-          'COMPRA <span>SEGURA</span>',
-          'PAGO PROTEGIDO'
-        ) +
-        '</div>';
-      var ca = document.querySelector('.noor-cf-wrap') || pr;
-      ca.parentNode.insertBefore(b, ca);
-      var f = b.querySelectorAll('svg, svg *');
-      for (var i = 0; i < f.length; i++) {
-        var o = f[i].getAttribute('class') === 'oro',
-          t = !!f[i].closest('.noor-trust'),
-          s = f[i].style;
-        s.setProperty('fill', 'none', 'important');
-        s.setProperty('stroke', t && !o ? '#f1f1f1' : '#e0990f', 'important');
-        s.setProperty('stroke-width', '1.8', 'important');
-        s.setProperty('stroke-linecap', 'round', 'important');
-        s.setProperty('stroke-linejoin', 'round', 'important');
-      }
-    }, 50);
-  });
+  ready(
+    'cuidamos tu visión',
+    function () {
+      setTimeout(function () {
+        var pr = document.querySelector('[data-store="home-products-featured"]');
+        if (!pr || document.querySelector('.noor-benef')) return;
+        function ic(p) {
+          return '<svg viewBox="0 0 24 24">' + p + '</svg>';
+        }
+        function it(p, t, s) {
+          return (
+            '<div class="noor-benef-item">' +
+            ic(p) +
+            '<div><strong>' +
+            t +
+            '</strong><small>' +
+            s +
+            '</small></div></div>'
+          );
+        }
+        function tr(p, t, s) {
+          return (
+            '<div class="noor-trust-item">' +
+            ic(p) +
+            '<p class="noor-trust-title">' +
+            t +
+            '</p><p class="noor-trust-sub">' +
+            s +
+            '</p></div>'
+          );
+        }
+        var b = document.createElement('div');
+        b.className = 'noor-benef';
+        b.innerHTML =
+          '<div class="noor-benef-glow"></div><p class="noor-benef-tag">LO QUE NOS DIFERENCIA</p><p class="noor-benef-title">Cuidamos <span>tu visión</span></p><p class="noor-benef-sub">DE PRINCIPIO A FIN</p><div class="noor-benef-grid">' +
+          it(
+            '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+            'Polarizados UV400',
+            'Bloquean el 100% de los rayos UVA y UVB'
+          ) +
+          it(
+            '<path d="M6 3v8a6 6 0 0 0 12 0V3h-4v8a2 2 0 0 1-4 0V3z"/><path d="M6 7h4M14 7h4"/>',
+            'Clips magnéticos',
+            'Cambiás de look en un segundo'
+          ) +
+          it(
+            '<rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/>',
+            'Control Blue',
+            'Filtro de luz azul para pantallas'
+          ) +
+          '</div><div class="noor-trust">' +
+          tr(
+            '<path class="oro" d="M1 8h4M1.5 11h3.5M2.5 14h2.5"/><path d="M7 6h9v10H7zM16 9h3l3 3v4h-6"/><circle cx="10" cy="17" r="2"/><circle cx="19" cy="17" r="2"/>',
+            'ENVÍO <span>GRATIS</span>',
+            'A TODO EL PAÍS'
+          ) +
+          tr(
+            '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/><path class="oro" d="M6 15h2M10 15h2"/>',
+            '<span>3</span> CUOTAS',
+            'SIN INTERÉS'
+          ) +
+          tr(
+            '<path d="M12 2l8 3v6c0 5-3.5 9-8 11-4.5-2-8-6-8-11V5z"/><path class="oro" d="M8.5 12l2.5 2.5 4.5-5"/>',
+            'COMPRA <span>SEGURA</span>',
+            'PAGO PROTEGIDO'
+          ) +
+          '</div>';
+        var ca = document.querySelector('.noor-cf-wrap') || pr;
+        ca.parentNode.insertBefore(b, ca);
+        var f = b.querySelectorAll('svg, svg *');
+        for (var i = 0; i < f.length; i++) {
+          var o = f[i].getAttribute('class') === 'oro',
+            t = !!f[i].closest('.noor-trust'),
+            s = f[i].style;
+          s.setProperty('fill', 'none', 'important');
+          s.setProperty('stroke', t && !o ? '#f1f1f1' : '#e0990f', 'important');
+          s.setProperty('stroke-width', '1.8', 'important');
+          s.setProperty('stroke-linecap', 'round', 'important');
+          s.setProperty('stroke-linejoin', 'round', 'important');
+        }
+      }, 50);
+    },
+    true
+  );
 
   /* 6) Inicio: ocultar sin stock y mostrar máximo 9 productos */
   ready(
@@ -1733,89 +1742,93 @@
   });
 
   /* 14) Prolijidad: reseñas largas con "Leer más", sin etiquetas "0% OFF" ni precios tachados en $0 y un solo aviso de cookies */
-  ready('prolijidad', function () {
-    var st = document.createElement('style');
-    st.textContent =
-      '.noor-res-corta{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}' +
-      '.noor-res-mas{display:inline-block;margin:4px 0 6px;padding:0;border:0;background:none;font:inherit;font-size:13px;font-weight:700;color:#e0990f;cursor:pointer}' +
-      '.noor-res-mas:focus-visible{outline:2px solid #e0990f;outline-offset:2px}';
-    document.head.appendChild(st);
+  ready(
+    'prolijidad',
+    function () {
+      var st = document.createElement('style');
+      st.textContent =
+        '.noor-res-corta{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}' +
+        '.noor-res-mas{display:inline-block;margin:4px 0 6px;padding:0;border:0;background:none;font:inherit;font-size:13px;font-weight:700;color:#e0990f;cursor:pointer}' +
+        '.noor-res-mas:focus-visible{outline:2px solid #e0990f;outline-offset:2px}';
+      document.head.appendChild(st);
 
-    function limpiar() {
-      /* Reseñas: el texto completo del cliente queda intacto, solo se muestran las primeras líneas */
-      var zonas = document.querySelectorAll('.noor-reviews');
-      for (var z = 0; z < zonas.length; z++) {
-        var els = zonas[z].querySelectorAll('p,div,span,blockquote');
-        for (var i = 0; i < els.length; i++) {
-          var e = els[i];
-          if (e.getAttribute('data-corta') || e.querySelector('p,div,blockquote')) continue;
-          var t = (e.textContent || '').trim();
-          if (!/^["“]/.test(t) || t.length < 120) continue;
-          e.setAttribute('data-corta', '1');
-          e.classList.add('noor-res-corta');
-          var bt = document.createElement('button');
-          bt.type = 'button';
-          bt.className = 'noor-res-mas';
-          bt.textContent = 'Leer más';
-          bt.onclick = (function (e, bt) {
-            return function (ev) {
-              ev.stopPropagation();
-              var c = e.classList.toggle('noor-res-corta');
-              bt.textContent = c ? 'Leer más' : 'Leer menos';
-            };
-          })(e, bt);
-          e.parentNode.insertBefore(bt, e.nextSibling);
+      function limpiar() {
+        /* Reseñas: el texto completo del cliente queda intacto, solo se muestran las primeras líneas */
+        var zonas = document.querySelectorAll('.noor-reviews');
+        for (var z = 0; z < zonas.length; z++) {
+          var els = zonas[z].querySelectorAll('p,div,span,blockquote');
+          for (var i = 0; i < els.length; i++) {
+            var e = els[i];
+            if (e.getAttribute('data-corta') || e.querySelector('p,div,blockquote')) continue;
+            var t = (e.textContent || '').trim();
+            if (!/^["“]/.test(t) || t.length < 120) continue;
+            e.setAttribute('data-corta', '1');
+            e.classList.add('noor-res-corta');
+            var bt = document.createElement('button');
+            bt.type = 'button';
+            bt.className = 'noor-res-mas';
+            bt.textContent = 'Leer más';
+            bt.onclick = (function (e, bt) {
+              return function (ev) {
+                ev.stopPropagation();
+                var c = e.classList.toggle('noor-res-corta');
+                bt.textContent = c ? 'Leer más' : 'Leer menos';
+              };
+            })(e, bt);
+            e.parentNode.insertBefore(bt, e.nextSibling);
+          }
         }
-      }
-      /* Etiquetas "0% OFF" y precios tachados en $0,00 */
-      // Solo mira los textos con "%" o "$" (antes revisaba cada elemento de la página)
-      var hojas = [];
-      textos(/[%$]/).forEach(function (t) {
-        var p = t.parentElement;
-        if (!p.children.length && hojas.indexOf(p) < 0) hojas.push(p);
-      });
-      for (var k = 0; k < hojas.length; k++) {
-        var x = hojas[k];
-        var tx = (x.textContent || '').replace(/\s+/g, ' ').trim();
-        if (/^-?0\s?%\s?OFF$/i.test(tx)) {
-          x.style.setProperty('display', 'none', 'important');
-          continue;
-        }
-        if (/^\$\s?0(,00)?$/.test(tx)) {
-          var cl = (x.className && x.className.toString()) || '';
-          if (
-            /compare|before|old|tachad/i.test(cl) ||
-            /^(S|DEL|STRIKE)$/.test(x.tagName) ||
-            x.closest('s,del,[class*="compare"]')
-          )
+        /* Etiquetas "0% OFF" y precios tachados en $0,00 */
+        // Solo mira los textos con "%" o "$" (antes revisaba cada elemento de la página)
+        var hojas = [];
+        textos(/[%$]/).forEach(function (t) {
+          var p = t.parentElement;
+          if (!p.children.length && hojas.indexOf(p) < 0) hojas.push(p);
+        });
+        for (var k = 0; k < hojas.length; k++) {
+          var x = hojas[k];
+          var tx = (x.textContent || '').replace(/\s+/g, ' ').trim();
+          if (/^-?0\s?%\s?OFF$/i.test(tx)) {
             x.style.setProperty('display', 'none', 'important');
+            continue;
+          }
+          if (/^\$\s?0(,00)?$/.test(tx)) {
+            var cl = (x.className && x.className.toString()) || '';
+            if (
+              /compare|before|old|tachad/i.test(cl) ||
+              /^(S|DEL|STRIKE)$/.test(x.tagName) ||
+              x.closest('s,del,[class*="compare"]')
+            )
+              x.style.setProperty('display', 'none', 'important');
+          }
         }
-      }
-      /* Aviso de cookies del tema: queda solo el de Noor, que enlaza a la política de privacidad */
-      var avisos = textos(/cookies/i);
-      for (var c = 0; c < avisos.length; c++) {
-        var y = avisos[c].parentElement;
-        // sube hasta el elemento que tiene la frase completa (máximo 300 letras, como antes)
-        while (y && y !== document.body && !/aceptás el uso de cookies/i.test(y.textContent || ''))
-          y = y.parentElement;
-        while (y && y !== document.body && y.children.length > 3 && (y.textContent || '').length <= 300)
-          y = y.parentElement;
-        if (!y || y === document.body || y.children.length > 3 || (y.textContent || '').length > 300)
-          continue;
-        if (y.closest('.noor-cookies')) continue;
-        for (var u = y; u && u !== document.body; u = u.parentElement) {
-          var cs = getComputedStyle(u),
-            cn = (u.className && u.className.toString()) || '';
-          if (cs.position === 'fixed' || /cookie|notification/i.test(cn)) {
-            u.style.setProperty('display', 'none', 'important');
-            break;
+        /* Aviso de cookies del tema: queda solo el de Noor, que enlaza a la política de privacidad */
+        var avisos = textos(/cookies/i);
+        for (var c = 0; c < avisos.length; c++) {
+          var y = avisos[c].parentElement;
+          // sube hasta el elemento que tiene la frase completa (máximo 300 letras, como antes)
+          while (y && y !== document.body && !/aceptás el uso de cookies/i.test(y.textContent || ''))
+            y = y.parentElement;
+          while (y && y !== document.body && y.children.length > 3 && (y.textContent || '').length <= 300)
+            y = y.parentElement;
+          if (!y || y === document.body || y.children.length > 3 || (y.textContent || '').length > 300)
+            continue;
+          if (y.closest('.noor-cookies')) continue;
+          for (var u = y; u && u !== document.body; u = u.parentElement) {
+            var cs = getComputedStyle(u),
+              cn = (u.className && u.className.toString()) || '';
+            if (cs.position === 'fixed' || /cookie|notification/i.test(cn)) {
+              u.style.setProperty('display', 'none', 'important');
+              break;
+            }
           }
         }
       }
-    }
-    limpiar();
-    setTimeout(limpiar, 1500);
-  });
+      limpiar();
+      setTimeout(limpiar, 1500);
+    },
+    INICIO // en el inicio, enseguida (para que nada salte); en las demás páginas, en su turno
+  );
   /* 15) Accesibilidad: contraste de textos, tamaño de los puntitos y nombres de enlaces */
   ready(
     'accesibilidad',
@@ -1843,6 +1856,23 @@
       for (var i = 0; i < zoom.length; i++)
         if (!zoom[i].getAttribute('aria-label'))
           zoom[i].setAttribute('aria-label', 'Ampliar imagen del producto');
+      // El tema pone el precio tachado gris claro con estilos propios: lo forzamos en el elemento y
+      // le sacamos la transparencia a sus contenedores cercanos (se hace después de dibujar, para no frenar)
+      function tachados() {
+        var ps = document.querySelectorAll('.js-compare-price-display, #compare_price_display');
+        for (var k = 0; k < ps.length; k++) {
+          ps[k].style.setProperty('color', '#6b6b6b', 'important');
+          for (var e = ps[k], n = 0; e && e !== document.body && n < 4; e = e.parentElement, n++) {
+            if (
+              e.matches('.js-item-product,[data-store^="product-item"],#product_form,.js-product-container')
+            )
+              break;
+            if (parseFloat(getComputedStyle(e).opacity) < 1) e.style.setProperty('opacity', '1', 'important');
+          }
+        }
+      }
+      trasDibujar(tachados);
+      setTimeout(tachados, 2000);
     },
     true
   );
