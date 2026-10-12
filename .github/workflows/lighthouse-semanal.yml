@@ -1,0 +1,80 @@
+# Informe semanal de Lighthouse (velocidad, accesibilidad, buenas prácticas y SEO) del inicio y del Clip 5 en 1.
+# TODO en un solo archivo. Corre los lunes a las 9 (hora argentina) y con el botón "Run workflow".
+# El resumen aparece en la ejecución y los informes completos quedan en "Artifacts".
+# Si SEO, accesibilidad o buenas prácticas bajan del mínimo, la ejecución queda en rojo y llega un mail.
+name: Informe semanal de Lighthouse
+
+on:
+  schedule:
+    - cron: '0 12 * * 1'        # lunes 12:00 UTC = 9:00 en Argentina
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lighthouse:
+    name: Medir la tienda con Lighthouse
+    runs-on: ubuntu-24.04   # versión fija: no cambia sola
+    steps:
+      - uses: actions/setup-node@v5
+        with: { node-version: 22 }
+      - name: Medir inicio y producto (como celular)
+        run: |
+          mkdir -p lh
+          for p in "home|https://noorstorear.mitiendanube.com/" "producto|https://noorstorear.mitiendanube.com/productos/clip-5-en-1/"; do
+            n="${p%%|*}"; u="${p#*|}"
+            npx --yes lighthouse@12.2.1 "$u" --output=json --output=html --output-path="lh/$n" \
+              --locale=es --only-categories=performance,accessibility,best-practices,seo \
+              --chrome-flags="--headless=new --no-sandbox" --quiet || echo "No se pudo medir $u"
+          done
+      - name: Resumen en castellano
+        run: |
+          cat > resumen.mjs << 'FIN_DEL_SCRIPT'
+          // Resume los informes de Lighthouse (velocidad, accesibilidad, buenas prácticas y SEO) en castellano.
+          // Falla (y GitHub te avisa por mail) solo si SEO, accesibilidad o buenas prácticas bajan del mínimo.
+          import { readFileSync, readdirSync, appendFileSync } from 'node:fs';
+
+          const MINIMOS = { seo: 80, accessibility: 70, 'best-practices': 70 };   // la velocidad solo se informa
+          const NOMBRES = { performance: 'Velocidad', accessibility: 'Accesibilidad', 'best-practices': 'Buenas prácticas', seo: 'SEO' };
+          const PAGINAS = { home: 'Inicio', producto: 'Clip 5 en 1' };
+          const icono = n => (n >= 90 ? '🟢' : n >= 50 ? '🟠' : '🔴');
+
+          let md = '## Informe semanal de Lighthouse\n\n| Página | ' + Object.values(NOMBRES).join(' | ') + ' |\n|---|---|---|---|---|\n';
+          const problemas = [], mejoras = [];
+
+          for (const archivo of readdirSync('lh').filter(f => f.endsWith('.report.json'))) {
+            const clave = archivo.replace('.report.json', '');
+            const r = JSON.parse(readFileSync('lh/' + archivo, 'utf8'));
+            const fila = [];
+            for (const cat of Object.keys(NOMBRES)) {
+              const n = Math.round((r.categories[cat]?.score ?? 0) * 100);
+              fila.push(icono(n) + ' ' + n);
+              if (MINIMOS[cat] && n < MINIMOS[cat]) problemas.push(`${PAGINAS[clave] || clave}: ${NOMBRES[cat]} en ${n} (mínimo ${MINIMOS[cat]})`);
+            }
+            md += `| ${PAGINAS[clave] || clave} | ${fila.join(' | ')} |\n`;
+            // Las 5 mejoras más importantes de la página
+            const peso = {};
+            for (const cat of Object.values(r.categories)) for (const ref of cat.auditRefs) peso[ref.id] = Math.max(peso[ref.id] || 0, ref.weight || 0);
+            Object.values(r.audits)
+              .filter(a => a.score !== null && a.score < 0.9 && a.scoreDisplayMode !== 'informative' && a.scoreDisplayMode !== 'notApplicable')
+              .sort((a, b) => (peso[b.id] || 0.5) * (1 - b.score) - (peso[a.id] || 0.5) * (1 - a.score))
+              .slice(0, 5)
+              .forEach(a => mejoras.push(`${PAGINAS[clave] || clave}: ${a.title}`));
+          }
+          md += '\n🟢 90–100 bien · 🟠 50–89 mejorable · 🔴 0–49 mal\n';
+          if (mejoras.length) md += '\n### Lo que más conviene mejorar\n' + mejoras.map(m => '- ' + m).join('\n') + '\n';
+          md += problemas.length ? '\n### ❌ Debajo del mínimo\n' + problemas.map(p => '- ' + p).join('\n') + '\n' : '\n✅ Todo por encima de los mínimos.\n';
+
+          console.log(md);
+          if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, md);
+          process.exit(problemas.length ? 1 : 0);
+          FIN_DEL_SCRIPT
+          node resumen.mjs
+      - name: Guardar informes completos
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: informes-lighthouse
+          path: lh/*.report.html
+          retention-days: 30
