@@ -2,6 +2,8 @@
 # TODO en un solo archivo. Corre los lunes a las 9 (hora argentina) y con el botón "Run workflow".
 # El resumen aparece en la ejecución y los informes completos quedan en "Artifacts".
 # Si SEO, accesibilidad o buenas prácticas bajan del mínimo, la ejecución queda en rojo y llega un mail.
+# La velocidad cambia mucho de una medición a otra: por eso mide cada página 5 veces (más una de calentamiento
+# que no cuenta) y muestra la del medio (mediana) con el rango. Una sola corrida alcanza: no hace falta correrlo dos veces.
 name: Informe semanal de Lighthouse
 
 on:
@@ -19,26 +21,44 @@ jobs:
     steps:
       - uses: actions/setup-node@v5
         with: { node-version: 22 }
-      - name: Medir inicio y producto (como celular)
+      - name: Medir inicio y producto (como celular), 5 veces cada una
         run: |
-          mkdir -p lh
+          mkdir -p lh/todas
           for p in "home|https://noorstorear.mitiendanube.com/" "producto|https://noorstorear.mitiendanube.com/productos/clip-5-en-1/"; do
             n="${p%%|*}"; u="${p#*|}"
-            npx --yes lighthouse@12.2.1 "$u" --output=json --output=html --output-path="lh/$n" \
-              --locale=es --only-categories=performance,accessibility,best-practices,seo \
-              --chrome-flags="--headless=new --no-sandbox" --quiet || echo "No se pudo medir $u"
+            for i in 0 1 2 3 4 5; do   # la 0 es de calentamiento (carga los archivos en jsDelivr) y no cuenta
+              npx --yes lighthouse@12.2.1 "$u" --output=json --output=html --output-path="lh/todas/$n-$i" \
+                --locale=es --only-categories=performance,accessibility,best-practices,seo \
+                --chrome-flags="--headless=new --no-sandbox" --quiet || echo "No se pudo medir $u (vuelta $i)"
+            done
+            rm -f lh/todas/$n-0.report.*
           done
       - name: Resumen en castellano
         run: |
           cat > resumen.mjs << 'FIN_DEL_SCRIPT'
           // Resume los informes de Lighthouse (velocidad, accesibilidad, buenas prácticas y SEO) en castellano.
           // Falla (y GitHub te avisa por mail) solo si SEO, accesibilidad o buenas prácticas bajan del mínimo.
-          import { readFileSync, readdirSync, appendFileSync } from 'node:fs';
+          import { readFileSync, readdirSync, appendFileSync, copyFileSync, existsSync } from 'node:fs';
 
           const MINIMOS = { seo: 80, accessibility: 70, 'best-practices': 70 };   // la velocidad solo se informa
           const NOMBRES = { performance: 'Velocidad', accessibility: 'Accesibilidad', 'best-practices': 'Buenas prácticas', seo: 'SEO' };
           const PAGINAS = { home: 'Inicio', producto: 'Clip 5 en 1' };
           const icono = n => (n >= 90 ? '🟢' : n >= 50 ? '🟠' : '🔴');
+
+          // De las 5 mediciones de cada página se queda con la del medio (mediana de velocidad)
+          const rangos = [];
+          for (const clave of Object.keys(PAGINAS)) {
+            const vueltas = readdirSync('lh/todas')
+              .filter(f => f.startsWith(clave + '-') && f.endsWith('.report.json'))
+              .map(f => ({ f, v: Math.round((JSON.parse(readFileSync('lh/todas/' + f, 'utf8')).categories.performance?.score ?? 0) * 100) }))
+              .sort((a, b) => a.v - b.v);
+            if (!vueltas.length) continue;
+            const medio = vueltas[Math.floor(vueltas.length / 2)];
+            const base = 'lh/todas/' + medio.f.replace('.report.json', '');
+            copyFileSync(base + '.report.json', `lh/${clave}.report.json`);
+            if (existsSync(base + '.report.html')) copyFileSync(base + '.report.html', `lh/${clave}.report.html`);
+            rangos.push(`${PAGINAS[clave]}: velocidad ${medio.v} (mediana de ${vueltas.length}; entre ${vueltas[0].v} y ${vueltas[vueltas.length - 1].v})`);
+          }
 
           let md = '## Informe semanal de Lighthouse\n\n| Página | ' + Object.values(NOMBRES).join(' | ') + ' |\n|---|---|---|---|---|\n';
           const problemas = [], mejoras = [];
@@ -63,6 +83,7 @@ jobs:
               .forEach(a => mejoras.push(`${PAGINAS[clave] || clave}: ${a.title}`));
           }
           md += '\n🟢 90–100 bien · 🟠 50–89 mejorable · 🔴 0–49 mal\n';
+          if (rangos.length) md += '\n### Velocidad (varía en cada medición)\n' + rangos.map(r => '- ' + r).join('\n') + '\n';
           if (mejoras.length) md += '\n### Lo que más conviene mejorar\n' + mejoras.map(m => '- ' + m).join('\n') + '\n';
           md += problemas.length ? '\n### ❌ Debajo del mínimo\n' + problemas.map(p => '- ' + p).join('\n') + '\n' : '\n✅ Todo por encima de los mínimos.\n';
 
