@@ -156,7 +156,6 @@
   var NOOR = (window.NOOR = { version: VERSION, errores: [], imagenes: [] });
   var QUIETO = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches); // celular con "reducir movimiento"
   var CHECKOUT = location.pathname.indexOf('checkout') > -1;
-  var INICIO = !!(document.body && document.body.classList.contains('template-home'));
   // Textos de la página que cumplen un patrón (mucho más rápido que revisar cada elemento)
   function textos(re, raiz) {
     var w = document.createTreeWalker(raiz || document.body, NodeFilter.SHOW_TEXT, null, false),
@@ -170,34 +169,38 @@
   }
 
   /* 1) Reseñas y preguntas frecuentes a lo ancho */
-  ready('reseñas a lo ancho', function () {
-    var destino = document.querySelector('#related-products');
-    var producto = document.querySelector('.producto.m-section-half');
-    var tipos = ['.noor-reviews', '.noor-faq'];
-    if (!document.querySelector('.noor-reviews, .noor-faq')) return;
-    var cont = document.querySelector('.noor-reviews-full');
-    if (!cont) {
-      cont = document.createElement('div');
-      cont.className = 'noor-reviews-full';
-      if (destino) {
-        destino.parentNode.insertBefore(cont, destino);
-      } else if (producto) {
-        producto.parentNode.insertBefore(cont, producto.nextSibling);
-      } else return;
-    }
-    for (var t = 0; t < tipos.length; t++) {
-      var c = document.querySelectorAll(tipos[t]);
-      if (!c.length) continue;
-      var e = cont.querySelector(tipos[t]);
-      if (!e) {
-        e = c[0];
-        cont.appendChild(e);
+  ready(
+    'reseñas a lo ancho',
+    function () {
+      var destino = document.querySelector('#related-products');
+      var producto = document.querySelector('.producto.m-section-half');
+      var tipos = ['.noor-reviews', '.noor-faq'];
+      if (!document.querySelector('.noor-reviews, .noor-faq')) return;
+      var cont = document.querySelector('.noor-reviews-full');
+      if (!cont) {
+        cont = document.createElement('div');
+        cont.className = 'noor-reviews-full';
+        if (destino) {
+          destino.parentNode.insertBefore(cont, destino);
+        } else if (producto) {
+          producto.parentNode.insertBefore(cont, producto.nextSibling);
+        } else return;
       }
-      for (var i = 0; i < c.length; i++) {
-        if (c[i] !== e && c[i].parentNode) c[i].parentNode.removeChild(c[i]);
+      for (var t = 0; t < tipos.length; t++) {
+        var c = document.querySelectorAll(tipos[t]);
+        if (!c.length) continue;
+        var e = cont.querySelector(tipos[t]);
+        if (!e) {
+          e = c[0];
+          cont.appendChild(e);
+        }
+        for (var i = 0; i < c.length; i++) {
+          if (c[i] !== e && c[i].parentNode) c[i].parentNode.removeChild(c[i]);
+        }
       }
-    }
-  });
+    },
+    true
+  );
 
   /* 2) Avisos de ventas reales (la fecha se muestra solo si la venta es de los últimos 3 días) */
   var ventas = CONFIG.ventas;
@@ -506,154 +509,158 @@
   );
 
   /* 7) Cuadro de medidas del armazón */
-  ready('medidas', function () {
-    var cajas = document.querySelectorAll('.noor-medidas');
-    for (var k = 0; k < cajas.length; k++) {
-      var c = cajas[k];
-      if (c.getAttribute('data-ok')) continue;
-      // Admite varios armazones separados por ";" -> F|C|P|T|Nombre;F|C|P|T|Nombre
-      var sets = [],
-        cr = c.textContent.split(';');
-      for (var z = 0; z < cr.length; z++) {
-        var mm = cr[z].split('|');
-        if (mm.length >= 4) sets.push(mm);
-      }
-      if (!sets.length) continue;
-      var m = sets[0];
-      var F = m[0].trim(),
-        C = m[1].trim(),
-        P = m[2].trim(),
-        T = m[3].trim();
-      function col(ic, v, t, d) {
-        return (
-          '<div class="noor-anat-col"><svg viewBox="0 0 60 40">' +
-          ic +
-          '</svg><strong>' +
-          v +
-          ' mm</strong><span>' +
-          t +
-          '</span><small>' +
-          d +
-          '</small></div>'
-        );
-      }
-      var icL =
-        '<path class="osc" d="M8 6C20 5 40 5 52 7C51 18 49 26 46 30C44 33 40 34 30 34C18 34 14 33 12 30C9 25 8 17 8 6Z"/><path class="oro" d="M13 20H47M13 20L17 17M13 20L17 23M47 20L43 17M47 20L43 23"/>';
-      var icP =
-        '<path class="osc" d="M2 7H22C22 18 20 27 16 33M58 7H38C38 18 40 27 44 33M22 11Q30 4 38 11"/><path class="oro" d="M23 24H37M23 24L26 21.5M23 24L26 26.5M37 24L34 21.5M37 24L34 26.5"/>';
-      var icT =
-        '<path class="osc" d="M4 12L38 13C45 13 50 16 54 22L57 27"/><path class="oro" d="M4 34H56M4 34L8 31M4 34L8 37M56 34L52 31M56 34L52 37"/>';
-      c.innerHTML =
-        '<p class="noor-med-tag">ANATOMÍA DE LAS MEDIDAS · UNISEX</p>' +
-        '<p class="noor-anat-sub">Así vienen grabadas en la parte interna de la patilla</p>' +
-        '<svg class="noor-anat-top" viewBox="0 0 320 70">' +
-        '<path class="pat" d="M6 24L228 26C254 27 274 32 292 46L312 62"/>' +
-        '<rect class="eti" x="112" y="14" width="96" height="22" rx="5"/>' +
-        '<text x="160" y="29">' +
-        C +
-        ' □ ' +
-        P +
-        ' - ' +
-        T +
-        '</text>' +
-        '<path class="oro" d="M160 36V64M155 58L160 65L165 58"/>' +
-        '</svg>' +
-        '<p class="noor-anat-code"><b>' +
-        C +
-        '</b> <i>□</i> ' +
-        P +
-        ' <i>-</i> ' +
-        T +
-        '</p>' +
-        '<div class="noor-anat-grid">' +
-        col(icL, C, 'Ancho del lente', 'Ancho horizontal de cada cristal.') +
-        col(icP, P, 'Ancho del puente', 'Distancia entre ambos cristales.') +
-        col(icT, T, 'Largo de la patilla', 'Desde la bisagra hasta la punta.') +
-        '</div>' +
-        '<p class="noor-anat-frente">Ancho total del frente: <b>' +
-        F +
-        ' mm</b></p>' +
-        '<p class="noor-med-nota">Anteojos <b>unisex</b>. Son medidas estándar, pensadas para adaptarse cómodamente a la mayoría de los rostros. Si ya tenés un anteojo que te queda bien, podés comparar sus medidas con estas. Todas las medidas están en milímetros.</p>';
-      if (sets.length > 1) {
-        var qs = function (x) {
-          var e = c.querySelector(x);
-          if (e) e.parentNode.removeChild(e);
-        };
-        qs('.noor-anat-code');
-        qs('.noor-anat-grid');
-        qs('.noor-anat-frente');
-        var td =
-          'padding:10px 6px;border-top:1px solid #ececec;text-align:center;font-size:14px;color:#15151a;';
-        var th =
-          'padding:8px 6px;text-align:center;font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#e0990f;';
-        var filas = [
-          ['Ancho del lente', 1],
-          ['Ancho del puente', 2],
-          ['Largo de la patilla', 3],
-          ['Ancho total del frente', 0]
-        ];
-        var h =
-          '<div style="overflow-x:auto;margin:14px 0 0;"><table style="width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;"><tr><th style="' +
-          th +
-          '"></th>';
-        for (var y = 0; y < sets.length; y++)
-          h += '<th style="' + th + '">' + (sets[y][4] || 'Modelo ' + (y + 1)).trim() + '</th>';
-        h += '</tr>';
-        for (var r = 0; r < filas.length; r++) {
-          h +=
-            '<tr><td style="' +
-            td +
-            'text-align:left;font-size:12px;font-weight:700;color:#555;">' +
-            filas[r][0] +
-            '</td>';
-          for (var y2 = 0; y2 < sets.length; y2++)
-            h += '<td style="' + td + 'font-weight:800;">' + sets[y2][filas[r][1]].trim() + ' mm</td>';
+  ready(
+    'medidas',
+    function () {
+      var cajas = document.querySelectorAll('.noor-medidas');
+      for (var k = 0; k < cajas.length; k++) {
+        var c = cajas[k];
+        if (c.getAttribute('data-ok')) continue;
+        // Admite varios armazones separados por ";" -> F|C|P|T|Nombre;F|C|P|T|Nombre
+        var sets = [],
+          cr = c.textContent.split(';');
+        for (var z = 0; z < cr.length; z++) {
+          var mm = cr[z].split('|');
+          if (mm.length >= 4) sets.push(mm);
+        }
+        if (!sets.length) continue;
+        var m = sets[0];
+        var F = m[0].trim(),
+          C = m[1].trim(),
+          P = m[2].trim(),
+          T = m[3].trim();
+        function col(ic, v, t, d) {
+          return (
+            '<div class="noor-anat-col"><svg viewBox="0 0 60 40">' +
+            ic +
+            '</svg><strong>' +
+            v +
+            ' mm</strong><span>' +
+            t +
+            '</span><small>' +
+            d +
+            '</small></div>'
+          );
+        }
+        var icL =
+          '<path class="osc" d="M8 6C20 5 40 5 52 7C51 18 49 26 46 30C44 33 40 34 30 34C18 34 14 33 12 30C9 25 8 17 8 6Z"/><path class="oro" d="M13 20H47M13 20L17 17M13 20L17 23M47 20L43 17M47 20L43 23"/>';
+        var icP =
+          '<path class="osc" d="M2 7H22C22 18 20 27 16 33M58 7H38C38 18 40 27 44 33M22 11Q30 4 38 11"/><path class="oro" d="M23 24H37M23 24L26 21.5M23 24L26 26.5M37 24L34 21.5M37 24L34 26.5"/>';
+        var icT =
+          '<path class="osc" d="M4 12L38 13C45 13 50 16 54 22L57 27"/><path class="oro" d="M4 34H56M4 34L8 31M4 34L8 37M56 34L52 31M56 34L52 37"/>';
+        c.innerHTML =
+          '<p class="noor-med-tag">ANATOMÍA DE LAS MEDIDAS · UNISEX</p>' +
+          '<p class="noor-anat-sub">Así vienen grabadas en la parte interna de la patilla</p>' +
+          '<svg class="noor-anat-top" viewBox="0 0 320 70">' +
+          '<path class="pat" d="M6 24L228 26C254 27 274 32 292 46L312 62"/>' +
+          '<rect class="eti" x="112" y="14" width="96" height="22" rx="5"/>' +
+          '<text x="160" y="29">' +
+          C +
+          ' □ ' +
+          P +
+          ' - ' +
+          T +
+          '</text>' +
+          '<path class="oro" d="M160 36V64M155 58L160 65L165 58"/>' +
+          '</svg>' +
+          '<p class="noor-anat-code"><b>' +
+          C +
+          '</b> <i>□</i> ' +
+          P +
+          ' <i>-</i> ' +
+          T +
+          '</p>' +
+          '<div class="noor-anat-grid">' +
+          col(icL, C, 'Ancho del lente', 'Ancho horizontal de cada cristal.') +
+          col(icP, P, 'Ancho del puente', 'Distancia entre ambos cristales.') +
+          col(icT, T, 'Largo de la patilla', 'Desde la bisagra hasta la punta.') +
+          '</div>' +
+          '<p class="noor-anat-frente">Ancho total del frente: <b>' +
+          F +
+          ' mm</b></p>' +
+          '<p class="noor-med-nota">Anteojos <b>unisex</b>. Son medidas estándar, pensadas para adaptarse cómodamente a la mayoría de los rostros. Si ya tenés un anteojo que te queda bien, podés comparar sus medidas con estas. Todas las medidas están en milímetros.</p>';
+        if (sets.length > 1) {
+          var qs = function (x) {
+            var e = c.querySelector(x);
+            if (e) e.parentNode.removeChild(e);
+          };
+          qs('.noor-anat-code');
+          qs('.noor-anat-grid');
+          qs('.noor-anat-frente');
+          var td =
+            'padding:10px 6px;border-top:1px solid #ececec;text-align:center;font-size:14px;color:#15151a;';
+          var th =
+            'padding:8px 6px;text-align:center;font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#e0990f;';
+          var filas = [
+            ['Ancho del lente', 1],
+            ['Ancho del puente', 2],
+            ['Largo de la patilla', 3],
+            ['Ancho total del frente', 0]
+          ];
+          var h =
+            '<div style="overflow-x:auto;margin:14px 0 0;"><table style="width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;"><tr><th style="' +
+            th +
+            '"></th>';
+          for (var y = 0; y < sets.length; y++)
+            h += '<th style="' + th + '">' + (sets[y][4] || 'Modelo ' + (y + 1)).trim() + '</th>';
           h += '</tr>';
+          for (var r = 0; r < filas.length; r++) {
+            h +=
+              '<tr><td style="' +
+              td +
+              'text-align:left;font-size:12px;font-weight:700;color:#555;">' +
+              filas[r][0] +
+              '</td>';
+            for (var y2 = 0; y2 < sets.length; y2++)
+              h += '<td style="' + td + 'font-weight:800;">' + sets[y2][filas[r][1]].trim() + ' mm</td>';
+            h += '</tr>';
+          }
+          h += '</table></div>';
+          var nota = c.querySelector('.noor-med-nota'),
+            w = document.createElement('div');
+          w.innerHTML = h;
+          if (nota) c.insertBefore(w.firstChild, nota);
+          else c.appendChild(w.firstChild);
         }
-        h += '</table></div>';
-        var nota = c.querySelector('.noor-med-nota'),
-          w = document.createElement('div');
-        w.innerHTML = h;
-        if (nota) c.insertBefore(w.firstChild, nota);
-        else c.appendChild(w.firstChild);
+        c.setAttribute('data-ok', '1');
+        var el = c.querySelectorAll('svg *');
+        for (var i = 0; i < el.length; i++) {
+          var s = el[i].style,
+            cl = el[i].getAttribute('class'),
+            tg = el[i].tagName.toLowerCase();
+          function st(p, v) {
+            s.setProperty(p, v, 'important');
+          }
+          st('stroke-linecap', 'round');
+          st('stroke-linejoin', 'round');
+          if (tg === 'text') {
+            st('fill', '#15151a');
+            st('stroke', 'none');
+            st('font-size', '11px');
+            st('font-weight', '700');
+            el[i].setAttribute('text-anchor', 'middle');
+          } else if (cl === 'eti') {
+            st('fill', '#fff');
+            st('stroke', '#15151a');
+            st('stroke-width', '1.2');
+          } else if (cl === 'pat') {
+            st('fill', 'none');
+            st('stroke', '#15151a');
+            st('stroke-width', '7');
+          } else if (cl === 'osc') {
+            st('fill', 'none');
+            st('stroke', '#15151a');
+            st('stroke-width', '3');
+          } else if (cl === 'oro') {
+            st('fill', 'none');
+            st('stroke', '#e0990f');
+            st('stroke-width', '1.6');
+          }
+        }
       }
-      c.setAttribute('data-ok', '1');
-      var el = c.querySelectorAll('svg *');
-      for (var i = 0; i < el.length; i++) {
-        var s = el[i].style,
-          cl = el[i].getAttribute('class'),
-          tg = el[i].tagName.toLowerCase();
-        function st(p, v) {
-          s.setProperty(p, v, 'important');
-        }
-        st('stroke-linecap', 'round');
-        st('stroke-linejoin', 'round');
-        if (tg === 'text') {
-          st('fill', '#15151a');
-          st('stroke', 'none');
-          st('font-size', '11px');
-          st('font-weight', '700');
-          el[i].setAttribute('text-anchor', 'middle');
-        } else if (cl === 'eti') {
-          st('fill', '#fff');
-          st('stroke', '#15151a');
-          st('stroke-width', '1.2');
-        } else if (cl === 'pat') {
-          st('fill', 'none');
-          st('stroke', '#15151a');
-          st('stroke-width', '7');
-        } else if (cl === 'osc') {
-          st('fill', 'none');
-          st('stroke', '#15151a');
-          st('stroke-width', '3');
-        } else if (cl === 'oro') {
-          st('fill', 'none');
-          st('stroke', '#e0990f');
-          st('stroke-width', '1.6');
-        }
-      }
-    }
-  });
+    },
+    true
+  );
 
   /* 8a) Banner principal con frase animada */
   ready(
@@ -1827,7 +1834,7 @@
       limpiar();
       setTimeout(limpiar, 1500);
     },
-    INICIO // en el inicio, enseguida (para que nada salte); en las demás páginas, en su turno
+    true
   );
   /* 15) Accesibilidad: contraste de textos, tamaño de los puntitos y nombres de enlaces */
   ready(
