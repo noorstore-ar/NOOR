@@ -2074,6 +2074,8 @@
           H +
           ':is(.noor-toast-text,.noor-toast-tag,.noor-toast-close){color:#cfcfcf!important}' +
           H +
+          '[class*="opacity-"]:not(.opacity-0):not([class*="noor"]){opacity:1!important}' +
+          H +
           '.noor-est{color:#e0990f!important}' +
           H +
           '.nv-estrella{color:#f3c561!important}';
@@ -2184,6 +2186,7 @@
           return l;
         }
         var VISTOS = new WeakSet();
+        var OPAC = new WeakSet();
         function contraste() {
           FONDOS = new Map();
           var w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false),
@@ -2207,6 +2210,14 @@
               var e = els[i],
                 cs = getComputedStyle(e),
                 tx = rgb(cs.color);
+              // El tema "apaga" algunos textos con transparencia (cuotas, envío, precios del carrito):
+              // sobre fondo oscuro no se leen, así que se les saca
+              for (var a = e, f = 0; a && a !== document.body && f < 6; a = a.parentElement, f++) {
+                if (OPAC.has(a)) break;
+                OPAC.add(a);
+                var op = parseFloat(getComputedStyle(a).opacity);
+                if (op > 0.15 && op < 0.9) a.style.setProperty('opacity', '1', 'important');
+              }
               if (!tx || tx[3] < 0.5) continue; // texto transparente (degradados): no se toca
               if (/^[\s★☆]+$/.test(e.textContent)) {
                 e.classList.add('nv-estrella'); // estrellas de las reseñas: doradas
