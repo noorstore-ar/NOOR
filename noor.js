@@ -24,6 +24,11 @@
     8a Banner principal                     15  Accesibilidad (contraste y tamaños)
                                             16  Estilo "vidrio y brillo dorado" (CONFIG.estilo)
 
+   ESTILO "VIDRIO" (sección 16, CONFIG.estilo)
+   - Fondo oscuro con brillo dorado, tarjetas de vidrio, botones dorados y letra Inter (archivo inter.woff2 del repo).
+   - Lo que el tema pinta de blanco y los textos que no se leen se arreglan solos: no hace falta nombrar cada parte.
+   - Para revisar un texto que no se ve: entrar con ?diag=1 al final del link y tocar el texto (muestra sus colores).
+
    ETIQUETAS EN LAS DESCRIPCIONES DE PRODUCTO (ocultas con style="display:none")
    - Tarjeta de oferta:  <div class="noor-oferta">Título|Subtítulo|Regalo|sin transferencia</div>
    - Antes y después:    <div class="noor-ad">antes.jpg|despues.jpg|Etiqueta antes|Etiqueta después|Título|Pestaña</div>
@@ -88,7 +93,7 @@
     //   'prueba'  = el estilo vidrio se ve SOLO entrando con ?vidrio=1 al final del link (los clientes no lo ven).
     //               Para salir del modo prueba: ?vidrio=0
     //   'vidrio'  = fondo oscuro con brillo dorado, tarjetas de vidrio, letra Inter y botones dorados, para todos
-    estilo: 'prueba',
+    estilo: 'vidrio',
     iman: {
       // sección "Cambiá de clip en un segundo"
       armazon: 'iman-armazon.webp',
@@ -1948,22 +1953,27 @@
             'background:rgba(255,255,255,.06)!important;border:1px solid rgba(255,255,255,.13)!important;',
           SIN_BTN =
             ':not(button *):not(.btn *):not([class*="btn"] *):not(body [class*="noor-"] *):not([class*="noor-"])';
-        // Letra Inter (Google Fonts, solo los grosores que se usan; mientras carga se ve la del sistema)
+        // Letra Inter: viene del repo (inter.woff2, 48 KB, todos los grosores en un solo archivo) por el mismo
+        // camino que noor.js, así no abre conexiones nuevas. "Inter respaldo" ocupa lo mismo que Inter mientras
+        // carga, para que los textos no salten al cambiar de letra.
+        var LETRA = img('inter.woff2');
         var pre = document.createElement('link');
-        pre.rel = 'preconnect';
-        pre.href = 'https://fonts.gstatic.com';
-        pre.crossOrigin = '';
+        pre.rel = 'preload';
+        pre.as = 'font';
+        pre.type = 'font/woff2';
+        pre.href = LETRA;
+        pre.crossOrigin = 'anonymous';
         document.head.appendChild(pre);
-        var fu = document.createElement('link');
-        fu.rel = 'stylesheet';
-        fu.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap';
-        document.head.appendChild(fu);
         var st = document.createElement('style');
         st.textContent =
+          '@font-face{font-family:Inter;font-style:normal;font-weight:100 900;font-display:swap;src:url(' +
+          LETRA +
+          ') format("woff2")}' +
+          '@font-face{font-family:"Inter respaldo";src:local("Arial");size-adjust:107%;ascent-override:90.5%;descent-override:22.5%;line-gap-override:0%}' +
           // Fondo negro con el resplandor dorado arriba a la derecha, textos claros y letra Inter
           'html.noor-vidrio{background:#0d0d0d;color-scheme:dark}' +
           H +
-          'body{background:radial-gradient(90% 700px at 88% 0,rgba(110,78,18,.75),rgba(13,13,13,0) 70%) no-repeat,#0d0d0d!important;color:#ececec!important;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif!important}' +
+          'body{background:radial-gradient(90% 700px at 88% 0,rgba(110,78,18,.75),rgba(13,13,13,0) 70%) no-repeat,#0d0d0d!important;color:#ececec!important;font-family:Inter,"Inter respaldo",Arial,sans-serif!important}' +
           H +
           'body :is(h1,h2,h3,h4,h5,h6,p,a,span,li,label,small,strong,b,em,td,th,dt,dd,button,input,select,textarea,div,legend):not([class*="icon"]):not([class*="fa-"]){font-family:inherit!important}' +
           H +
@@ -2003,7 +2013,7 @@
           H +
           '.nv-vidrio{' +
           VID +
-          'box-shadow:0 8px 24px rgba(0,0,0,.35)!important;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}' +
+          'box-shadow:0 8px 24px rgba(0,0,0,.35)!important}' + // sin desenfoque: el fondo es liso y el celu va más rápido
           H +
           '.nv-oscuro{background-color:transparent!important;border-color:rgba(255,255,255,.1)!important}' +
           H +
@@ -2341,9 +2351,15 @@
         }
         // Carrito, menú, reseñas y secciones que aparecen después o al tocar
         document.addEventListener('click', todo, true);
+        // Solo cuando aparecen bloques nuevos (no cuando cambia un texto, como el aviso de ventas o el banner)
         if (window.MutationObserver)
           new MutationObserver(function (ms) {
-            for (var k = 0; k < ms.length; k++) if (ms[k].addedNodes.length) return todo();
+            for (var k = 0; k < ms.length; k++)
+              for (var j = 0; j < ms[k].addedNodes.length; j++) {
+                var nd = ms[k].addedNodes[j];
+                if (nd.nodeType === 1 && !nd.closest('.noor-toast,.noor-topbar,.noor-progreso'))
+                  return todo();
+              }
           }).observe(document.body, { childList: true, subtree: true });
       },
       true
