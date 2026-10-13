@@ -2007,7 +2007,11 @@
           H +
           '.nv-oscuro{background-color:transparent!important;border-color:rgba(255,255,255,.1)!important}' +
           H +
-          '.nv-foto{background-color:#f4f4f2!important}' +
+          '.nv-foto{background-color:transparent!important}' +
+          H +
+          '.nv-sinfade::before,' +
+          H +
+          '.nv-sinfade::after{background:none!important;box-shadow:none!important}' +
           // Carrito, menú y ventanas que se abren encima: fondo oscuro sólido (que no se trasluzca lo de atrás)
           H +
           '.nv-solido{background-color:#141414!important;border-color:rgba(255,255,255,.1)!important}' +
@@ -2089,9 +2093,9 @@
           return 0.2126 * m[0] + 0.7152 * m[1] + 0.0722 * m[2] > 215;
         }
         var SEL =
-          'main,section,header,footer,nav,aside,form,table,[class*="noor-anat"],[class*="noor-med"],[class*="section"],[class*="container"],[class*="item"],[class*="card"],[class*="modal"],[class*="nav"],[class*="head"],[class*="foot"],[class*="dropdown"],[class*="drawer"],[class*="panel"],[class*="box"],[class*="form"],[class*="table"],[class*="list"],[class*="cart"],[class*="search"],[class*="menu"],[class*="review"],[class*="faq"],[class*="accordion"],[class*="tab"],[class*="popup"],[class*="alert"],[class*="notification"]';
+          'main,section,header,footer,nav,aside,form,table,a[class],button,[class*="btn"],[class*="pill"],[class*="chip"],[class*="categor"],[class*="carousel"],[class*="swiper"],[class*="noor-anat"],[class*="noor-med"],[class*="section"],[class*="container"],[class*="item"],[class*="card"],[class*="modal"],[class*="nav"],[class*="head"],[class*="foot"],[class*="dropdown"],[class*="drawer"],[class*="panel"],[class*="box"],[class*="form"],[class*="table"],[class*="list"],[class*="cart"],[class*="search"],[class*="menu"],[class*="review"],[class*="faq"],[class*="accordion"],[class*="tab"],[class*="popup"],[class*="alert"],[class*="notification"]';
         var REVISADOS = new WeakSet();
-        function revisar() {
+        function revisar(listo) {
           var els = document.querySelectorAll(SEL),
             i = 0;
           function tanda() {
@@ -2106,10 +2110,15 @@
                 e.classList.contains('nv-solido')
               )
                 continue;
-              if (e.closest('button,.btn,[class*="btn"],.noor-deal,.noor-ad-view,.noor-cf-wrap,.noor-hero'))
-                continue;
+              if (e.closest('.noor-deal,.noor-ad-view,.noor-cf-wrap,.noor-hero')) continue;
               var cs = getComputedStyle(e);
-              if (!claro(cs.backgroundColor)) continue;
+              // Degradés blancos a los costados (por ejemplo en el carrusel de reseñas): se sacan
+              ['::before', '::after'].forEach(function (ps) {
+                var bi = getComputedStyle(e, ps).backgroundImage;
+                if (bi && /gradient/.test(bi) && /255, 255, 255|#fff/i.test(bi))
+                  e.classList.add('nv-sinfade');
+              });
+              if (!claro(cs.backgroundColor) || cs.backgroundImage !== 'none') continue; // los botones dorados no se tocan
               if (
                 /image|img|foto|photo|slide|gallery/i.test(e.className) ||
                 (e.querySelector('img') && !e.querySelector('p,h1,h2,h3,h4,span,a,button'))
@@ -2131,6 +2140,7 @@
                 }
             }
             if (i < els.length) turno(tanda);
+            else if (listo) listo();
           }
           tanda();
         }
@@ -2209,7 +2219,7 @@
             for (var c = 0; i < els.length && c < 150; i++, c++) {
               var e = els[i],
                 cs = getComputedStyle(e),
-                tx = rgb(cs.color);
+                tx = rgb(cs.webkitTextFillColor || cs.color);
               // El tema "apaga" algunos textos con transparencia (cuotas, envío, precios del carrito):
               // sobre fondo oscuro no se leen, así que se les saca
               for (var a = e, f = 0; a && a !== document.body && f < 6; a = a.parentElement, f++) {
@@ -2225,7 +2235,10 @@
               }
               var lt = lum(tx),
                 lf = fondo(e);
-              if (lf > 0.35) continue; // fondo claro (botones dorados, cajitas de fotos): está bien así
+              if (lf > 0.35) {
+                VISTOS.delete(e); // se vuelve a mirar después (el fondo claro puede pasar a oscuro)
+                continue;
+              } // fondo claro (botones dorados, cajitas de fotos): está bien así
               if ((lt + 0.05) / (lf + 0.05) >= 4.5) continue; // ya se lee bien
               var mx = Math.max(tx[0], tx[1], tx[2]),
                 mn = Math.min(tx[0], tx[1], tx[2]),
@@ -2240,6 +2253,7 @@
                   ? '#f2f2f2'
                   : '#cfcfcf';
               e.style.setProperty('color', nuevo, 'important');
+              e.style.setProperty('-webkit-text-fill-color', nuevo, 'important');
             }
             if (i < els.length) turno(tanda);
             else iconos();
@@ -2270,16 +2284,61 @@
         function todo() {
           clearTimeout(espera);
           espera = setTimeout(function () {
-            revisar();
-            trasDibujar(contraste);
+            revisar(function () {
+              trasDibujar(contraste);
+            });
           }, 300);
         }
         trasDibujar(function () {
-          revisar();
-          contraste();
+          revisar(contraste);
         });
         setTimeout(todo, 2500);
         setTimeout(todo, 6000);
+        // Modo diagnóstico (?vidrio=1&diag=1): al tocar un texto muestra de qué está hecho, para sacarle captura
+        if (/[?&]diag=1/.test(location.search)) {
+          var caja = document.createElement('div');
+          caja.style.cssText =
+            'position:fixed;left:8px;right:8px;bottom:8px;z-index:2147483647;background:#fff;color:#000;font:12px/1.4 monospace;padding:10px;border:3px solid #e0990f;border-radius:10px;max-height:45vh;overflow:auto;white-space:pre-wrap';
+          caja.textContent = 'DIAGNÓSTICO: tocá el texto que no se ve';
+          document.body.appendChild(caja);
+          document.addEventListener(
+            'click',
+            function (ev) {
+              if (caja.contains(ev.target)) return;
+              ev.preventDefault();
+              ev.stopPropagation();
+              var r = [];
+              for (
+                var a = ev.target, f = 0;
+                a && a !== document.documentElement && f < 7;
+                a = a.parentElement, f++
+              ) {
+                var cs = getComputedStyle(a);
+                r.push(
+                  a.tagName.toLowerCase() +
+                    (a.id ? '#' + a.id : '') +
+                    (typeof a.className === 'string' && a.className
+                      ? '.' + a.className.trim().split(/\s+/).join('.')
+                      : '') +
+                    '\n   color ' +
+                    cs.color +
+                    ' · fondo ' +
+                    cs.backgroundColor +
+                    (cs.backgroundImage !== 'none' ? ' + imagen' : '') +
+                    ' · opac ' +
+                    cs.opacity +
+                    (cs.filter !== 'none' ? ' · filtro ' + cs.filter : '') +
+                    (cs.mixBlendMode !== 'normal' ? ' · mezcla ' + cs.mixBlendMode : '') +
+                    (cs.webkitTextFillColor && cs.webkitTextFillColor !== cs.color
+                      ? ' · relleno ' + cs.webkitTextFillColor
+                      : '')
+                );
+              }
+              caja.textContent = NOOR.version + '\n' + r.join('\n');
+            },
+            true
+          );
+        }
         // Carrito, menú, reseñas y secciones que aparecen después o al tocar
         document.addEventListener('click', todo, true);
         if (window.MutationObserver)
