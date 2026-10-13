@@ -1904,7 +1904,7 @@
         '.js-saved-money-message .font-small-xs,.js-offer-saved-money{color:' +
         C.ahorro +
         '!important}' +
-        '#btn-installments{color:' +
+        '#btn-installments,#btn-installments *{color:' +
         C.cuotas +
         '!important}' +
         // Puntitos del carrusel: se ven igual, pero el área para tocar es de 24 px
@@ -2074,12 +2074,15 @@
         }
         var SEL =
           'main,section,header,footer,nav,aside,form,table,[class*="section"],[class*="container"],[class*="item"],[class*="card"],[class*="modal"],[class*="nav"],[class*="head"],[class*="foot"],[class*="dropdown"],[class*="drawer"],[class*="panel"],[class*="box"],[class*="form"],[class*="table"],[class*="list"],[class*="cart"],[class*="search"],[class*="menu"],[class*="review"],[class*="faq"],[class*="accordion"],[class*="tab"],[class*="popup"],[class*="alert"],[class*="notification"]';
+        var REVISADOS = new WeakSet();
         function revisar() {
           var els = document.querySelectorAll(SEL),
             i = 0;
           function tanda() {
             for (var n = 0; i < els.length && n < 120; i++, n++) {
               var e = els[i];
+              if (REVISADOS.has(e)) continue;
+              REVISADOS.add(e);
               if (
                 e.classList.contains('nv-vidrio') ||
                 e.classList.contains('nv-oscuro') ||
@@ -2107,16 +2110,124 @@
           }
           tanda();
         }
-        trasDibujar(revisar);
-        setTimeout(revisar, 2500);
-        // Carrito, menú y ventanas que aparecen al tocar
-        document.addEventListener(
-          'click',
-          function () {
-            setTimeout(revisar, 400);
-          },
-          true
-        );
+        // Revisión de textos que no se leen: si un texto es oscuro sobre fondo oscuro, se aclara.
+        // Sirve para todo (tema, reseñas, preguntas, cuotas, títulos de las secciones) sin tener que nombrarlos.
+        function rgb(c) {
+          var m = c && c.match(/[\d.]+/g);
+          return m && m.length >= 3 ? [+m[0], +m[1], +m[2], m.length > 3 ? +m[3] : 1] : null;
+        }
+        function lum(c) {
+          var f = function (v) {
+            v /= 255;
+            return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+          };
+          return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]);
+        }
+        var FONDOS = new Map();
+        // Luminosidad del fondo real detrás de un elemento (sube hasta encontrar un fondo pintado)
+        function fondo(e) {
+          var cam = [],
+            l = 0.006; // negro de la página
+          for (var a = e; a && a !== document.documentElement; a = a.parentElement) {
+            if (FONDOS.has(a)) {
+              l = FONDOS.get(a);
+              break;
+            }
+            cam.push(a);
+            var cs = getComputedStyle(a),
+              bi = cs.backgroundImage;
+            if (bi && bi !== 'none' && bi.indexOf('gradient') > -1 && a !== document.body) {
+              var cols = bi.match(/rgba?\([^)]+\)/g) || [],
+                s = 0,
+                n = 0;
+              for (var k = 0; k < cols.length; k++) {
+                var cc = rgb(cols[k]);
+                if (cc && cc[3] > 0.5) {
+                  s += lum(cc);
+                  n++;
+                }
+              }
+              if (n) {
+                l = s / n;
+                break;
+              }
+            }
+            var bg = rgb(cs.backgroundColor);
+            if (bg && bg[3] >= 0.5) {
+              l = lum(bg);
+              break;
+            }
+          }
+          for (var j = 0; j < cam.length; j++) FONDOS.set(cam[j], l);
+          return l;
+        }
+        var VISTOS = new WeakSet();
+        function contraste() {
+          FONDOS = new Map();
+          var w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false),
+            els = [],
+            n;
+          while ((n = w.nextNode())) {
+            var p = n.parentElement;
+            if (
+              !p ||
+              VISTOS.has(p) ||
+              !n.nodeValue.trim() ||
+              /^(SCRIPT|STYLE|NOSCRIPT|TEMPLATE|OPTION)$/.test(p.tagName)
+            )
+              continue;
+            VISTOS.add(p);
+            els.push(p);
+          }
+          var i = 0;
+          function tanda() {
+            for (var c = 0; i < els.length && c < 150; i++, c++) {
+              var e = els[i],
+                cs = getComputedStyle(e),
+                tx = rgb(cs.color);
+              if (!tx || tx[3] < 0.5) continue; // texto transparente (degradados): no se toca
+              var lt = lum(tx),
+                lf = fondo(e);
+              if (lf > 0.35) continue; // fondo claro (botones dorados, cajitas de fotos): está bien así
+              if ((lt + 0.05) / (lf + 0.05) >= 4.5) continue; // ya se lee bien
+              var mx = Math.max(tx[0], tx[1], tx[2]),
+                mn = Math.min(tx[0], tx[1], tx[2]),
+                col = mx - mn > 60; // texto de color (verde, dorado…): se aclara manteniendo el tono
+              var nuevo = col
+                ? 'rgb(' +
+                  [tx[0], tx[1], tx[2]].map(function (v) {
+                    return Math.round(v + (255 - v) * 0.55);
+                  }) +
+                  ')'
+                : parseFloat(cs.fontSize) >= 20 || +cs.fontWeight >= 600
+                  ? '#f2f2f2'
+                  : '#cfcfcf';
+              e.style.setProperty('color', nuevo, 'important');
+            }
+            if (i < els.length) turno(tanda);
+          }
+          tanda();
+        }
+        var espera;
+        function todo() {
+          clearTimeout(espera);
+          espera = setTimeout(function () {
+            revisar();
+            trasDibujar(contraste);
+          }, 300);
+        }
+        trasDibujar(function () {
+          revisar();
+          contraste();
+        });
+        setTimeout(todo, 2500);
+        setTimeout(todo, 6000);
+        // Carrito, menú, reseñas y secciones que aparecen después o al tocar
+        document.addEventListener('click', todo, true);
+        if (window.MutationObserver)
+          new MutationObserver(function (ms) {
+            for (var k = 0; k < ms.length; k++) if (ms[k].addedNodes.length) return todo();
+          }).observe(document.body, { childList: true, subtree: true });
       },
       true
     );
