@@ -2341,9 +2341,47 @@
                     (cs.mixBlendMode !== 'normal' ? ' · mezcla ' + cs.mixBlendMode : '') +
                     (cs.webkitTextFillColor && cs.webkitTextFillColor !== cs.color
                       ? ' · relleno ' + cs.webkitTextFillColor
+                      : '') +
+                    // Tamaños (para fotos y recuadros)
+                    '\n   tam ' +
+                    a.offsetWidth +
+                    '×' +
+                    a.offsetHeight +
+                    (a.style.paddingBottom || cs.paddingBottom !== '0px'
+                      ? ' · pad-abajo ' + cs.paddingBottom
+                      : '') +
+                    (cs.position !== 'static' ? ' · pos ' + cs.position : '') +
+                    (a.tagName === 'IMG'
+                      ? ' · foto ' + a.naturalWidth + '×' + a.naturalHeight + ' · ajuste ' + cs.objectFit
                       : '')
                 );
               }
+              // Si se tocó encima de una foto (lupa, flechas), mostrar también la foto que hay debajo
+              var fo =
+                ev.target.tagName === 'IMG'
+                  ? null
+                  : (ev.target.closest('div,a,li') || ev.target).querySelector('img');
+              if (!fo) {
+                var pts = document.elementsFromPoint
+                  ? document.elementsFromPoint(ev.clientX, ev.clientY)
+                  : [];
+                for (var q = 0; q < pts.length && !fo; q++) if (pts[q].tagName === 'IMG') fo = pts[q];
+              }
+              if (fo)
+                r.push(
+                  'FOTO ' +
+                    (fo.className || '') +
+                    '\n   tam ' +
+                    fo.offsetWidth +
+                    '×' +
+                    fo.offsetHeight +
+                    ' · foto ' +
+                    fo.naturalWidth +
+                    '×' +
+                    fo.naturalHeight +
+                    ' · ajuste ' +
+                    getComputedStyle(fo).objectFit
+                );
               caja.textContent = NOOR.version + '\n' + r.join('\n');
             },
             true
