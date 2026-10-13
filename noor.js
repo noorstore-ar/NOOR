@@ -22,6 +22,7 @@
     6  Inicio: máximo de productos            13  "Cambiá de clip en un segundo"
     7  Cuadro de medidas                      14  Prolijidad (Leer más, 0% OFF, cookies del tema)
     8a Banner principal                     15  Accesibilidad (contraste y tamaños)
+                                            16  Estilo "vidrio y brillo dorado" (CONFIG.estilo)
 
    ETIQUETAS EN LAS DESCRIPCIONES DE PRODUCTO (ocultas con style="display:none")
    - Tarjeta de oferta:  <div class="noor-oferta">Título|Subtítulo|Regalo|sin transferencia</div>
@@ -82,6 +83,12 @@
     paginaPrivacidad: '/politica-de-privacidad/',
     oroTexto: '#9a6600', // dorado para textos chicos sobre blanco (accesible)
     oroTitulo: '#c4850c', // dorado para títulos grandes sobre blanco (accesible)
+    // Estilo de la tienda (sección 16):
+    //   'clasico' = como siempre (fondo blanco)
+    //   'prueba'  = el estilo vidrio se ve SOLO entrando con ?vidrio=1 al final del link (los clientes no lo ven).
+    //               Para salir del modo prueba: ?vidrio=0
+    //   'vidrio'  = fondo oscuro con brillo dorado, tarjetas de vidrio, letra Inter y botones dorados, para todos
+    estilo: 'prueba',
     iman: {
       // sección "Cambiá de clip en un segundo"
       armazon: 'iman-armazon.webp',
@@ -156,6 +163,20 @@
   var NOOR = (window.NOOR = { version: VERSION, errores: [], imagenes: [] });
   var QUIETO = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches); // celular con "reducir movimiento"
   var CHECKOUT = location.pathname.indexOf('checkout') > -1;
+  // ¿Va el estilo "vidrio"? (ver CONFIG.estilo). En modo prueba se recuerda mientras la pestaña esté abierta
+  var VIDRIO = (function () {
+    if (CHECKOUT || CONFIG.estilo === 'clasico') return false;
+    if (CONFIG.estilo === 'vidrio') return true;
+    var m = /[?&]vidrio=([01])/.exec(location.search),
+      k = 'noor-vidrio';
+    try {
+      if (m) m[1] === '1' ? sessionStorage.setItem(k, '1') : sessionStorage.removeItem(k);
+      return sessionStorage.getItem(k) === '1';
+    } catch (e) {
+      return !!m && m[1] === '1';
+    }
+  })();
+  if (VIDRIO) document.documentElement.classList.add('noor-vidrio');
   // Textos de la página que cumplen un patrón (mucho más rápido que revisar cada elemento)
   function textos(re, raiz) {
     var w = document.createTreeWalker(raiz || document.body, NodeFilter.SHOW_TEXT, null, false),
@@ -1840,22 +1861,52 @@
   ready(
     'accesibilidad',
     function () {
+      // Colores con buen contraste: sobre blanco (clásico) o sobre negro (estilo vidrio)
+      var C = VIDRIO
+        ? {
+            tag: '#f3c561',
+            tit: '#f3c561',
+            nota: '#c4c4c4',
+            ad: '#c4c4c4',
+            tachado: '#a3a3a3',
+            ahorro: '#f3c561',
+            cuotas: '#d6d6d6'
+          }
+        : {
+            tag: CONFIG.oroTexto,
+            tit: CONFIG.oroTitulo,
+            nota: '#555',
+            ad: '#666',
+            tachado: '#6b6b6b',
+            ahorro: '#8a5a00',
+            cuotas: '#4a4a4a'
+          };
       var st = document.createElement('style');
       st.textContent =
-        // Dorado más oscuro solo en textos chicos sobre fondo blanco (contraste suficiente para leer)
+        // Dorado de los textos chicos y títulos (contraste suficiente para leer)
         '.noor-benef-tag,.noor-cf-tag,.noor-iman-tag,.noor-med-tag,.noor-ad-tag,.noor-faq-tag,.noor-anat-code b,.noor-anat-col strong{color:' +
-        CONFIG.oroTexto +
+        C.tag +
         '!important}' +
         '.noor-benef-title,.noor-benef-title span,.noor-benef-title .noor-trazo{color:' +
-        CONFIG.oroTitulo +
+        C.tit +
         '!important}' +
-        '.noor-anat-col small,.noor-med-nota,.noor-med-nota b{color:#555!important}' +
-        '.noor-ad-note{color:#666!important}' +
-        // Precio tachado: el tema lo aclara con transparencia; lo dejamos gris oscuro y sin transparencia
+        '.noor-anat-col small,.noor-med-nota,.noor-med-nota b{color:' +
+        C.nota +
+        '!important}' +
+        '.noor-ad-note{color:' +
+        C.ad +
+        '!important}' +
+        // Precio tachado: el tema lo aclara con transparencia; lo dejamos en un gris legible y sin transparencia
         '.price-compare,.item-price-compare,.js-compare-price-display,#compare_price_display{opacity:1!important}' +
-        'html body span.js-compare-price-display,html body #compare_price_display{color:#6b6b6b!important}' +
-        '.js-saved-money-message .font-small-xs,.js-offer-saved-money{color:#8a5a00!important}' +
-        '#btn-installments{color:#4a4a4a!important}' +
+        'html body span.js-compare-price-display,html body #compare_price_display{color:' +
+        C.tachado +
+        '!important}' +
+        '.js-saved-money-message .font-small-xs,.js-offer-saved-money{color:' +
+        C.ahorro +
+        '!important}' +
+        '#btn-installments{color:' +
+        C.cuotas +
+        '!important}' +
         // Puntitos del carrusel: se ven igual, pero el área para tocar es de 24 px
         '.noor-cf-dots button{box-sizing:content-box!important;border:8px solid transparent!important;background-clip:padding-box!important}';
       document.head.appendChild(st);
@@ -1868,7 +1919,7 @@
       function tachados() {
         var ps = document.querySelectorAll('.js-compare-price-display, #compare_price_display');
         for (var k = 0; k < ps.length; k++) {
-          ps[k].style.setProperty('color', '#6b6b6b', 'important');
+          ps[k].style.setProperty('color', C.tachado, 'important');
           for (var e = ps[k], n = 0; e && e !== document.body && n < 4; e = e.parentElement, n++) {
             if (
               e.matches('.js-item-product,[data-store^="product-item"],#product_form,.js-product-container')
@@ -1883,4 +1934,190 @@
     },
     true
   );
+
+  /* 16) Estilo "vidrio y brillo dorado" (CONFIG.estilo)
+   Solo cambia colores, fondos, bordes, botones y la letra (Inter). No mueve nada ni toca las fotos.
+   Lo que el tema pinta de blanco se detecta solo y se pasa a oscuro o a "vidrio". */
+  if (VIDRIO)
+    ready(
+      'estilo vidrio',
+      function () {
+        var H = 'html.noor-vidrio ',
+          ORO = 'linear-gradient(135deg,#f3c561,#e0990f)',
+          VID =
+            'background:rgba(255,255,255,.06)!important;border:1px solid rgba(255,255,255,.13)!important;',
+          SIN_BTN =
+            ':not(button *):not(.btn *):not([class*="btn"] *):not(body [class*="noor-"] *):not([class*="noor-"])';
+        // Letra Inter (Google Fonts, solo los grosores que se usan; mientras carga se ve la del sistema)
+        var pre = document.createElement('link');
+        pre.rel = 'preconnect';
+        pre.href = 'https://fonts.gstatic.com';
+        pre.crossOrigin = '';
+        document.head.appendChild(pre);
+        var fu = document.createElement('link');
+        fu.rel = 'stylesheet';
+        fu.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap';
+        document.head.appendChild(fu);
+        var st = document.createElement('style');
+        st.textContent =
+          // Fondo negro con el resplandor dorado arriba a la derecha, textos claros y letra Inter
+          'html.noor-vidrio{background:#0d0d0d;color-scheme:dark}' +
+          H +
+          'body{background:radial-gradient(90% 700px at 88% 0,rgba(110,78,18,.75),rgba(13,13,13,0) 70%) no-repeat,#0d0d0d!important;color:#ececec!important;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif!important}' +
+          H +
+          'body :is(h1,h2,h3,h4,h5,h6,p,a,span,li,label,small,strong,b,em,td,th,dt,dd,button,input,select,textarea,div,legend):not([class*="icon"]):not([class*="fa-"]){font-family:inherit!important}' +
+          H +
+          'body :is(h1,h2,h3,h4,h5,h6,p,li,label,small,td,th,dt,dd,legend,.h1,.h2,.h3,.h4,.h5,.h6)' +
+          SIN_BTN +
+          '{color:#ececec!important}' +
+          H +
+          'body a' +
+          SIN_BTN +
+          ':not(.btn):not([class*="btn"]){color:#ececec!important}' +
+          H +
+          'body :is(.js-item-name,.item-name,.js-price-display,.item-price,.price,#price_display)' +
+          SIN_BTN +
+          '{color:#fff!important}' +
+          // Encabezado y pie oscuros
+          H +
+          ':is([data-store="head"],.js-head-main,.head-main,[data-store="footer"],footer){background-color:rgba(12,12,12,.94)!important;border-color:rgba(255,255,255,.08)!important;color:#ececec!important}' +
+          H +
+          '[data-store="head"] svg:not([class*="noor"] svg){fill:currentColor}' +
+          // Campos de texto (buscador, cantidad, código postal, cupones)
+          H +
+          'body :is(input,select,textarea):not([type=checkbox]):not([type=radio]):not([type=submit]):not([type=button]):not([type=range]){background-color:rgba(255,255,255,.06)!important;color:#fff!important;border-color:rgba(255,255,255,.2)!important}' +
+          H +
+          'body ::placeholder{color:#9a9a9a!important}' +
+          // Botones: dorado con brillo y forma de píldora; los secundarios, de vidrio
+          H +
+          'body :is(.btn-primary,.js-addtocart:not(.js-addtocart-placeholder),.noor-fija button,.noor-cookies button){background:' +
+          ORO +
+          '!important;color:#111!important;border:0!important;border-radius:999px!important;box-shadow:0 6px 20px rgba(224,153,15,.28)!important}' +
+          H +
+          'body :is(.btn-primary,.js-addtocart) *{color:#111!important}' +
+          H +
+          'body :is(.btn-secondary,.btn-default){' +
+          VID +
+          'color:#fff!important;border-radius:999px!important}' +
+          // Bloques "vidrio" (los marca la revisión de fondos claros de abajo)
+          H +
+          '.nv-vidrio{' +
+          VID +
+          'box-shadow:0 8px 24px rgba(0,0,0,.35)!important;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}' +
+          H +
+          '.nv-oscuro{background-color:transparent!important;border-color:rgba(255,255,255,.1)!important}' +
+          H +
+          '.nv-foto{background-color:#f4f4f2!important}' +
+          // Secciones propias de noor.js
+          H +
+          '.noor-deal{background:linear-gradient(#17140f,#17140f) padding-box,conic-gradient(from var(--noor-giro),#e0990f 0deg,#e0990f 260deg,#f3c561 300deg,#fff6dc 320deg,#f3c561 340deg,#e0990f 360deg) border-box!important}' +
+          H +
+          ':is(.noor-deal-tit,.noor-deal-price,.noor-deal-line b){color:#fff!important}' +
+          H +
+          ':is(.noor-deal-sub,.noor-deal-line){color:#d0d0d0!important}' +
+          H +
+          '.noor-deal-old{color:#a3a3a3!important}' +
+          H +
+          '.noor-deal-off{background:rgba(224,153,15,.16)!important;color:#f3c561!important}' +
+          H +
+          '.noor-deal-extra{background:rgba(224,153,15,.1)!important;border-top-color:rgba(243,197,97,.22)!important}' +
+          H +
+          ':is(.noor-deal-ic,.noor-deal-free){color:#111!important}' +
+          H +
+          ':is(.noor-ad-title,.noor-iman-tit){color:#fff!important}' +
+          H +
+          ':is(.noor-ad-sub,.noor-iman-paso){color:#c9c9c9!important}' +
+          H +
+          '.noor-ad-tabs button{' +
+          VID +
+          'border-color:rgba(243,197,97,.6)!important;color:#fff!important}' +
+          H +
+          '.noor-ad-tabs button[aria-selected="true"]{background:' +
+          ORO +
+          '!important;color:#111!important;border-color:transparent!important}' +
+          H +
+          '.noor-iman{background:transparent!important}' +
+          H +
+          '.noor-iman-barra{background:rgba(255,255,255,.15)!important}' +
+          H +
+          '.noor-iman-sombra{opacity:0}' +
+          H +
+          '.noor-medidas table{' +
+          VID +
+          'border-radius:14px!important}' +
+          H +
+          '.noor-medidas td{color:#fff!important;border-top-color:rgba(255,255,255,.1)!important}' +
+          H +
+          '.noor-medidas tr td:first-child{color:#c4c4c4!important}' +
+          H +
+          '.noor-medidas svg{background:#f4f4f2;border-radius:14px}' +
+          H +
+          '.noor-fija{background:rgba(16,16,16,.88)!important;border-top-color:rgba(255,255,255,.1)!important;-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}' +
+          H +
+          '.noor-fija-info :is(strong,span){color:#fff!important}' +
+          H +
+          '.noor-toast{background:rgba(20,20,20,.9)!important;color:#fff!important;border:1px solid rgba(255,255,255,.13)!important;-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}' +
+          H +
+          '.noor-toast-title{color:#fff!important}' +
+          H +
+          ':is(.noor-toast-text,.noor-toast-tag,.noor-toast-close){color:#cfcfcf!important}' +
+          H +
+          '.noor-est:not(.on){color:#555!important}';
+        document.head.appendChild(st);
+
+        // Revisión de fondos claros del tema: lo blanco pasa a "vidrio" (si es una tarjeta) o a transparente.
+        // Las fotos de producto con fondo blanco quedan en una cajita clara con bordes redondeados.
+        function claro(c) {
+          var m = c && c.match(/[\d.]+/g);
+          if (!m || (m.length > 3 && +m[3] < 0.6)) return false;
+          return 0.2126 * m[0] + 0.7152 * m[1] + 0.0722 * m[2] > 215;
+        }
+        var SEL =
+          'main,section,header,footer,nav,aside,form,table,[class*="section"],[class*="container"],[class*="item"],[class*="card"],[class*="modal"],[class*="nav"],[class*="head"],[class*="foot"],[class*="dropdown"],[class*="drawer"],[class*="panel"],[class*="box"],[class*="form"],[class*="table"],[class*="list"],[class*="cart"],[class*="search"],[class*="menu"],[class*="review"],[class*="faq"],[class*="accordion"],[class*="tab"],[class*="popup"],[class*="alert"],[class*="notification"]';
+        function revisar() {
+          var els = document.querySelectorAll(SEL),
+            i = 0;
+          function tanda() {
+            for (var n = 0; i < els.length && n < 120; i++, n++) {
+              var e = els[i];
+              if (
+                e.classList.contains('nv-vidrio') ||
+                e.classList.contains('nv-oscuro') ||
+                e.classList.contains('nv-foto')
+              )
+                continue;
+              if (e.closest('button,.btn,[class*="btn"],.noor-deal,.noor-ad-view,.noor-cf-wrap,.noor-hero'))
+                continue;
+              var cs = getComputedStyle(e);
+              if (!claro(cs.backgroundColor)) continue;
+              if (
+                /image|img|foto|photo|slide|gallery/i.test(e.className) ||
+                (e.querySelector('img') && !e.querySelector('p,h1,h2,h3,h4,span,a,button'))
+              )
+                e.classList.add('nv-foto');
+              else if (
+                parseFloat(cs.borderTopLeftRadius) > 0 ||
+                parseFloat(cs.borderTopWidth) > 0 ||
+                cs.boxShadow !== 'none'
+              )
+                e.classList.add('nv-vidrio');
+              else e.classList.add('nv-oscuro');
+            }
+            if (i < els.length) turno(tanda);
+          }
+          tanda();
+        }
+        trasDibujar(revisar);
+        setTimeout(revisar, 2500);
+        // Carrito, menú y ventanas que aparecen al tocar
+        document.addEventListener(
+          'click',
+          function () {
+            setTimeout(revisar, 400);
+          },
+          true
+        );
+      },
+      true
+    );
 })();
