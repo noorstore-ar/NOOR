@@ -23,6 +23,7 @@
     7  Cuadro de medidas                      14  Prolijidad (Leer más, 0% OFF, cookies del tema)
     8a Banner principal                     15  Accesibilidad (contraste y tamaños)
                                             16  Estilo "vidrio y brillo dorado" (CONFIG.estilo)
+                                            17  Foto del producto a lo ancho en el celu
 
    ESTILO "VIDRIO" (sección 16, CONFIG.estilo)
    - Fondo oscuro con brillo dorado, tarjetas de vidrio, botones dorados y letra Inter (archivo inter.woff2 del repo).
@@ -2402,4 +2403,42 @@
       },
       true
     );
+
+  /* 17) Foto del producto a lo ancho en el celu
+   El tema achica el recuadro de la foto a 300 px de alto, y como las fotos son cuadradas quedaba un margen a
+   los costados. Acá el recuadro toma la forma de la foto (cuadrado) y la foto lo llena entero, sin recortarse. */
+  ready(
+    'foto del producto',
+    function () {
+      if (!document.getElementById('product-slider-container')) return;
+      var C = '#product-slider-container ';
+      var st = document.createElement('style');
+      st.textContent =
+        '@media (max-width:767px){' +
+        '#product-slider-container,' +
+        C +
+        '.js-swiper-product,' +
+        C +
+        '.swiper-wrapper,' +
+        C +
+        '.js-product-slide{height:auto!important;max-height:none!important}' +
+        C +
+        '.js-product-slide-img{width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;object-fit:contain}' +
+        '}';
+      document.head.appendChild(st);
+      // Control: si el título del producto quedara tapado por la foto, se deshace el cambio
+      trasDibujar(function () {
+        var caja = document.getElementById('product-slider-container'),
+          tit = document.querySelector('.js-product-name, #product-name, h1');
+        if (!caja || !tit) return;
+        var a = caja.getBoundingClientRect(),
+          b = tit.getBoundingClientRect();
+        if (b.top > a.top && b.top < a.bottom - 2) {
+          st.remove();
+          NOOR.errores.push('foto del producto: deshecho (tapaba el título)');
+        }
+      });
+    },
+    true
+  );
 })();
