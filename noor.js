@@ -2383,7 +2383,11 @@
                     ' · ajuste ' +
                     getComputedStyle(fo).objectFit
                 );
-              caja.textContent = NOOR.version + '\n' + r.join('\n');
+              caja.textContent =
+                NOOR.version +
+                (NOOR.errores.length ? ' · avisos: ' + NOOR.errores.join(' / ') : '') +
+                '\n' +
+                r.join('\n');
             },
             true
           );
@@ -2404,9 +2408,10 @@
       true
     );
 
-  /* 17) Foto del producto a lo ancho en el celu
-   El tema achica el recuadro de la foto a 300 px de alto, y como las fotos son cuadradas quedaba un margen a
-   los costados. Acá el recuadro toma la forma de la foto (cuadrado) y la foto lo llena entero, sin recortarse. */
+  /* 17) Foto del producto cuadrada y a lo ancho en el celu
+   El tema achicaba el recuadro a 300 px de alto y le daba a cada foto su propia forma, así que quedaban márgenes
+   a los costados o abajo. Acá todas las fotos van en un recuadro cuadrado del ancho de la pantalla: las cuadradas
+   lo llenan entero y las que tienen otra forma se ven completas, centradas, sin recortarse. */
   ready(
     'foto del producto',
     function () {
@@ -2423,17 +2428,19 @@
         C +
         '.js-product-slide{height:auto!important;max-height:none!important}' +
         C +
-        '.js-product-slide-img{width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;object-fit:contain}' +
+        '.js-desktop-zoom{height:0!important;padding-bottom:100%!important}' +
+        C +
+        '.js-product-slide-img{top:0!important;left:0!important;right:auto!important;bottom:auto!important;transform:none!important;width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;object-fit:contain}' +
         '}';
       document.head.appendChild(st);
       // Control: si el título del producto quedara tapado por la foto, se deshace el cambio
       trasDibujar(function () {
         var caja = document.getElementById('product-slider-container'),
-          tit = document.querySelector('.js-product-name, #product-name, h1');
+          tit = document.querySelector('#product_form h1, .js-product-name');
         if (!caja || !tit) return;
         var a = caja.getBoundingClientRect(),
           b = tit.getBoundingClientRect();
-        if (b.top > a.top && b.top < a.bottom - 2) {
+        if (b.top > a.top + 10 && b.top < a.bottom - 2) {
           st.remove();
           NOOR.errores.push('foto del producto: deshecho (tapaba el título)');
         }
