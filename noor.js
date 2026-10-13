@@ -2008,6 +2008,18 @@
           '.nv-oscuro{background-color:transparent!important;border-color:rgba(255,255,255,.1)!important}' +
           H +
           '.nv-foto{background-color:#f4f4f2!important}' +
+          // Carrito, menú y ventanas que se abren encima: fondo oscuro sólido (que no se trasluzca lo de atrás)
+          H +
+          '.nv-solido{background-color:#141414!important;border-color:rgba(255,255,255,.1)!important}' +
+          // Cuadro de medidas: de vidrio oscuro (los dibujitos quedan en su cajita clara)
+          H +
+          ':is(.noor-medidas,.noor-medidas [class*="noor-anat-col"]){' +
+          VID +
+          'box-shadow:none!important}' +
+          H +
+          '.noor-medidas{border-radius:20px!important}' +
+          H +
+          '.noor-medidas :is(.noor-anat-code,.noor-anat-frente,b,strong,td){color:#fff!important}' +
           // Secciones propias de noor.js
           H +
           '.noor-deal{background:linear-gradient(#17140f,#17140f) padding-box,conic-gradient(from var(--noor-giro),#e0990f 0deg,#e0990f 260deg,#f3c561 300deg,#fff6dc 320deg,#f3c561 340deg,#e0990f 360deg) border-box!important}' +
@@ -2062,7 +2074,9 @@
           H +
           ':is(.noor-toast-text,.noor-toast-tag,.noor-toast-close){color:#cfcfcf!important}' +
           H +
-          '.noor-est:not(.on){color:#555!important}';
+          '.noor-est{color:#e0990f!important}' +
+          H +
+          '.nv-estrella{color:#f3c561!important}';
         document.head.appendChild(st);
 
         // Revisión de fondos claros del tema: lo blanco pasa a "vidrio" (si es una tarjeta) o a transparente.
@@ -2073,7 +2087,7 @@
           return 0.2126 * m[0] + 0.7152 * m[1] + 0.0722 * m[2] > 215;
         }
         var SEL =
-          'main,section,header,footer,nav,aside,form,table,[class*="section"],[class*="container"],[class*="item"],[class*="card"],[class*="modal"],[class*="nav"],[class*="head"],[class*="foot"],[class*="dropdown"],[class*="drawer"],[class*="panel"],[class*="box"],[class*="form"],[class*="table"],[class*="list"],[class*="cart"],[class*="search"],[class*="menu"],[class*="review"],[class*="faq"],[class*="accordion"],[class*="tab"],[class*="popup"],[class*="alert"],[class*="notification"]';
+          'main,section,header,footer,nav,aside,form,table,[class*="noor-anat"],[class*="noor-med"],[class*="section"],[class*="container"],[class*="item"],[class*="card"],[class*="modal"],[class*="nav"],[class*="head"],[class*="foot"],[class*="dropdown"],[class*="drawer"],[class*="panel"],[class*="box"],[class*="form"],[class*="table"],[class*="list"],[class*="cart"],[class*="search"],[class*="menu"],[class*="review"],[class*="faq"],[class*="accordion"],[class*="tab"],[class*="popup"],[class*="alert"],[class*="notification"]';
         var REVISADOS = new WeakSet();
         function revisar() {
           var els = document.querySelectorAll(SEL),
@@ -2086,7 +2100,8 @@
               if (
                 e.classList.contains('nv-vidrio') ||
                 e.classList.contains('nv-oscuro') ||
-                e.classList.contains('nv-foto')
+                e.classList.contains('nv-foto') ||
+                e.classList.contains('nv-solido')
               )
                 continue;
               if (e.closest('button,.btn,[class*="btn"],.noor-deal,.noor-ad-view,.noor-cf-wrap,.noor-hero'))
@@ -2105,6 +2120,13 @@
               )
                 e.classList.add('nv-vidrio');
               else e.classList.add('nv-oscuro');
+              // Si está dentro de algo que se abre encima de la página (carrito, menú), va sólido
+              for (var a = e, f = 0; a && a !== document.body && f < 8; a = a.parentElement, f++)
+                if (/fixed|absolute/.test(getComputedStyle(a).position)) {
+                  e.classList.remove('nv-oscuro', 'nv-vidrio');
+                  e.classList.add('nv-solido');
+                  break;
+                }
             }
             if (i < els.length) turno(tanda);
           }
@@ -2186,6 +2208,10 @@
                 cs = getComputedStyle(e),
                 tx = rgb(cs.color);
               if (!tx || tx[3] < 0.5) continue; // texto transparente (degradados): no se toca
+              if (/^[\s★☆]+$/.test(e.textContent)) {
+                e.classList.add('nv-estrella'); // estrellas de las reseñas: doradas
+                continue;
+              }
               var lt = lum(tx),
                 lf = fondo(e);
               if (lf > 0.35) continue; // fondo claro (botones dorados, cajitas de fotos): está bien así
@@ -2205,8 +2231,29 @@
               e.style.setProperty('color', nuevo, 'important');
             }
             if (i < els.length) turno(tanda);
+            else iconos();
           }
           tanda();
+        }
+        // Íconos (camión, tarjeta, candado…): si son oscuros sobre fondo oscuro, pasan a dorado
+        function iconos() {
+          var ss = document.querySelectorAll('svg');
+          for (var k = 0; k < ss.length; k++) {
+            var s = ss[k];
+            if (VISTOS.has(s) || s.closest('.noor-medidas,.noor-hero,.noor-cf-wrap,button,.btn')) continue;
+            VISTOS.add(s);
+            if (fondo(s) > 0.35) continue;
+            var ps = [s].concat(
+              [].slice.call(s.querySelectorAll('path,circle,rect,line,polyline,polygon,ellipse,use,g'))
+            );
+            for (var j = 0; j < ps.length; j++) {
+              var cs = getComputedStyle(ps[j]);
+              ['fill', 'stroke'].forEach(function (pr) {
+                var c = rgb(cs[pr]);
+                if (c && c[3] >= 0.5 && lum(c) < 0.12) ps[j].style.setProperty(pr, '#f3c561', 'important');
+              });
+            }
+          }
         }
         var espera;
         function todo() {
