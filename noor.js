@@ -2426,7 +2426,12 @@
         C +
         '.swiper-wrapper,' +
         C +
-        '.js-product-slide{height:auto!important;max-height:none!important}' +
+        '.js-product-slide{height:auto!important;max-height:none!important;padding-bottom:0!important;margin-bottom:0!important}' +
+        // Sin borde ni franja de abajo: la foto llega hasta el borde del recuadro
+        '.product-featured-image.product-featured-image.product-featured-image,' +
+        '#product-slider-container,' +
+        C +
+        '.js-swiper-product{border:0!important;box-shadow:none!important;outline:0!important;background:transparent!important}' +
         C +
         '.js-desktop-zoom{height:0!important;padding-bottom:100%!important}' +
         C +
